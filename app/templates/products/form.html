@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% set is_new = product is none %}
+{% block page_title %}{{ 'Add product' if is_new else 'Edit product' }}{% endblock %}
+
+{% block page_actions %}
+  <a href="{{ url_for('products.product_list') }}" class="btn btn-secondary">← Back</a>
+  {% if not is_new and product.active %}
+    <form method="post" action="{{ url_for('products.product_deactivate', product_id=product.id) }}"
+          style="display:inline"
+          onsubmit="return confirm('Deactivate this product? It won\'t appear in searches but history is kept.')">
+      <button type="submit" class="btn btn-secondary">Deactivate</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width:720px;">
+
+<form method="post">
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
+
+    {# ── left column ── #}
+    <div>
+      <div class="form-group">
+        <label for="sku">SKU <span style="color:var(--warn)">*</span></label>
+        <input id="sku" name="sku" type="text" class="input"
+               value="{{ (form.sku or product.sku) if not is_new else (form.get('sku','')) | e }}"
+               {{ 'readonly style="background:var(--bg)"' if not is_new }}
+               placeholder="e.g. GL-RND-6-RED" autocomplete="off"
+               oninput="autofillBarcode(this.value)">
+        {% if not is_new %}<small class="text-muted">SKU cannot be changed after creation.</small>{% endif %}
+      </div>
+
+      <div class="form-group">
+        <label for="name">Name <span style="color:var(--warn)">*</span></label>
+        <input id="name" name="name" type="text" class="input"
+               value="{{ (form.name if form.name else (product.name if not is_new else '')) | e }}"
+               placeholder="e.g. Glass bead round 6mm red">
+      </div>
+
+      {# material #}
+      <div class="form-group">
+        <label for="material_id">Material</label>
+        <select id="material_id" name="material_id" class="input"
+                onchange="toggleNew('material',this.value)">
+          <option value="">— None —</option>
+          {% for m in materials %}
+            <option value="{{ m.id }}"
+              {{ 'selected' if (form.material_id == m.id|string) or (not is_new and product.material_id == m.id) }}>
+              {{ m.name | e }}
+            </option>
+          {% endfor %}
+          <option value="__new__">─ Add new ─</option>
+        </select>
+        <div id="material-new" class="new-folder-row mt-1" style="display:none;">
+          <input type="text" id="material-name" class="input input-sm" placeholder="Material name"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addManaged('material');}">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addManaged('material')">Add</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="cancelManaged('material')">✕</button>
+        </div>
+      </div>
+
+      {# shape #}
+      <div class="form-group">
+        <label for="shape_id">Shape</label>
+        <select id="shape_id" name="shape_id" class="input"
+                onchange="toggleNew('shape',this.value)">
+          <option value="">— None —</option>
+          {% for s in shapes %}
+            <option value="{{ s.id }}"
+              {{ 'selected' if (form.shape_id == s.id|string) or (not is_new and product.shape_id == s.id) }}>
+              {{ s.name | e }}
+            </option>
+          {% endfor %}
+          <option value="__new__">─ Add new ─</option>
+        </select>
+        <div id="shape-new" class="new-folder-row mt-1" style="display:none;">
+          <input type="text" id="shape-name" class="input input-sm" placeholder="Shape name"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addManaged('shape');}">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addManaged('shape')">Add</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="cancelManaged('shape')">✕</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="size_mm">Size (mm)</label>
+        <input id="size_mm" name="size_mm" type="number" step="any" min="0" class="input"
+               value="{{ (form.size_mm if form.size_mm else (product.size_mm if not is_new and product.size_mm else '')) | e }}"
+               placeholder="e.g. 6">
+      </div>
+
+      {# color #}
+      <div class="form-group">
+        <label for="color_id">Color</label>
+        <select id="color_id" name="color_id" class="input"
+                onchange="toggleNew('color',this.value)">
+          <option value="">— None —</option>
+          {% for c in colors %}
+            <option value="{{ c.id }}"
+              {{ 'selected' if (form.color_id == c.id|string) or (not is_new and product.color_id == c.id) }}>
+              {{ c.name | e }}
+            </option>
+          {% endfor %}
+          <option value="__new__">─ Add new ─</option>
+        </select>
+        <div id="color-new" class="new-folder-row mt-1" style="display:none;">
+          <input type="text" id="color-name" class="input input-sm" placeholder="Color name"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addManaged('color');}">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addManaged('color')">Add</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="cancelManaged('color')">✕</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="barcode">Barcode (leave blank to use SKU)</label>
+        <input id="barcode" name="barcode" type="text" class="input"
+               value="{{ (form.barcode if form.barcode else (product.barcode if not is_new else '')) | e }}"
+               placeholder="Auto-filled from SKU" autocomplete="off">
+      </div>
+    </div>
+
+    {# ── right column ── #}
+    <div>
+      <div class="form-group">
+        <label for="cost_per_kg">Cost per kg (₹)</label>
+        <input id="cost_per_kg" name="cost_per_kg" type="number" step="0.01" min="0" class="input"
+               value="{{ (form.cost_per_kg if form.cost_per_kg else (product.cost_per_kg_paise / 100 if not is_new else '')) | e }}"
+               placeholder="0.00">
+      </div>
+
+      <div class="form-group">
+        <label for="price_per_kg">Price per kg (₹)</label>
+        <input id="price_per_kg" name="price_per_kg" type="number" step="0.01" min="0" class="input"
+               value="{{ (form.price_per_kg if form.price_per_kg else (product.price_per_kg_paise / 100 if not is_new else '')) | e }}"
+               placeholder="0.00">
+      </div>
+
+      {% if is_new %}
+      <div class="form-group">
+        <label for="opening_stock">Opening stock (kg)</label>
+        <input id="opening_stock" name="opening_stock" type="number" step="0.001" min="0" class="input"
+               value="{{ form.get('opening_stock', '0') | e }}"
+               placeholder="0.000">
+        <small class="text-muted">Stock on hand when you start using this product.</small>
+      </div>
+      {% else %}
+      <div class="form-group">
+        <label>Current stock</label>
+        <div class="input" style="background:var(--bg); cursor:default;">
+          {{ stock_grams | format_grams }} kg
+        </div>
+        <small class="text-muted">Adjust stock from the product list using the Adjust action.</small>
+      </div>
+      {% endif %}
+
+      <div class="form-group">
+        <label for="reorder_kg">Reorder level (kg)</label>
+        <input id="reorder_kg" name="reorder_kg" type="number" step="0.001" min="0" class="input"
+               value="{{ (form.reorder_kg if form.reorder_kg else (product.reorder_grams / 1000 if not is_new else '')) | e }}"
+               placeholder="0.000">
+        <small class="text-muted">Shows "Low" when stock falls to or below this level.</small>
+      </div>
+
+      <div class="form-group">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" class="input" rows="3"
+                  placeholder="Optional notes">{{ (form.notes if form.notes else (product.notes if not is_new else '')) | e }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+    <button type="submit" class="btn btn-primary">
+      {{ 'Add product' if is_new else 'Save changes' }}
+    </button>
+  </div>
+</form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function autofillBarcode(sku) {
+  var bc = document.getElementById('barcode');
+  if (!bc._touched) bc.value = sku;
+}
+document.getElementById('barcode').addEventListener('input', function() {
+  this._touched = this.value.length > 0;
+});
+
+function toggleNew(type, val) {
+  var panel = document.getElementById(type + '-new');
+  if (val === '__new__') {
+    panel.style.display = 'flex';
+    document.getElementById(type + '-name').focus();
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+async function addManaged(type) {
+  var name = document.getElementById(type + '-name').value.trim();
+  if (!name) return;
+  var resp = await fetch('/api/managed/' + type + 's', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name })
+  });
+  var data = await resp.json();
+  if (data.error) { alert(data.error); return; }
+  var sel = document.getElementById(type + '_id');
+  var opt = document.createElement('option');
+  opt.value = data.id; opt.textContent = data.name;
+  sel.insertBefore(opt, sel.querySelector('option[value="__new__"]'));
+  sel.value = data.id;
+  cancelManaged(type);
+}
+
+function cancelManaged(type) {
+  document.getElementById(type + '-new').style.display = 'none';
+  document.getElementById(type + '-name').value = '';
+  var sel = document.getElementById(type + '_id');
+  if (sel.value === '__new__') sel.value = '';
+}
+</script>
+{% endblock %}

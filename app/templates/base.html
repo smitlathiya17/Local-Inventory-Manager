@@ -15,7 +15,7 @@
     </div>
     <ul class="sidebar-nav">
       <li><a href="{{ url_for('main.dashboard') }}"    class="{{ 'active' if request.endpoint == 'main.dashboard' }}">Dashboard</a></li>
-      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('products.') }}">Products</a></li>
+      <li><a href="{{ url_for('products.product_list') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('products.') }}">Products</a></li>
       <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('stock.') }}">Total stock</a></li>
       <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('po.') }}">Purchase orders</a></li>
       <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('sales.') }}">Sales</a></li>

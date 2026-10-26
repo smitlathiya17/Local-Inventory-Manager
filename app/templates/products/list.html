@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block page_title %}Products &amp; stock{% endblock %}
+
+{% block page_actions %}
+  <a href="{{ url_for('products.product_new') }}" class="btn btn-primary">Add product</a>
+{% endblock %}
+
+{% block content %}
+
+{# ── filter bar ── #}
+<form id="filter-form" method="get" class="card card-sm mb-2">
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+    <div style="flex:2; min-width:200px;">
+      <label for="q">Search or scan barcode</label>
+      <input id="q" name="q" type="text" class="input" value="{{ q | e }}"
+             placeholder="Name, SKU or barcode"
+             autocomplete="off"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();submitExact();}">
+    </div>
+    <div style="flex:1; min-width:140px;">
+      <label>Material</label>
+      <select name="material" class="input">
+        <option value="">All materials</option>
+        {% for m in materials %}
+          <option value="{{ m.id }}" {{ 'selected' if f_material == m.id|string }}>{{ m.name | e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:1; min-width:120px;">
+      <label>Shape</label>
+      <select name="shape" class="input">
+        <option value="">All shapes</option>
+        {% for s in shapes %}
+          <option value="{{ s.id }}" {{ 'selected' if f_shape == s.id|string }}>{{ s.name | e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="min-width:100px;">
+      <label>Size</label>
+      <select name="size" class="input">
+        <option value="">All sizes</option>
+        {% for sz in sizes %}
+          <option value="{{ sz.size_mm }}" {{ 'selected' if f_size == sz.size_mm|string }}>
+            {{ sz.size_mm | format_size }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:1; min-width:120px;">
+      <label>Color</label>
+      <select name="color" class="input">
+        <option value="">All colors</option>
+        {% for c in colors %}
+          <option value="{{ c.id }}" {{ 'selected' if f_color == c.id|string }}>{{ c.name | e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="display:flex; gap:6px; padding-top:18px; flex-shrink:0;">
+      <label style="display:flex; align-items:center; gap:4px; font-size:12.5px; color:var(--muted); font-weight:400;">
+        <input type="checkbox" name="low" value="1" {{ 'checked' if low_only }}> Low stock only
+      </label>
+      <label style="display:flex; align-items:center; gap:4px; font-size:12.5px; color:var(--muted); font-weight:400;">
+        <input type="checkbox" name="all" value="1" {{ 'checked' if show_all }}> Show inactive
+      </label>
+      <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+      {% if q or f_material or f_shape or f_size or f_color or low_only %}
+        <a href="{{ url_for('products.product_list') }}" class="btn btn-secondary btn-sm">Clear</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
+{# ── header line ── #}
+<p style="font-size:13px; color:var(--muted); margin-bottom:10px;">
+  Showing <strong style="color:var(--text)">{{ showing_count }}</strong> of {{ total_count }} products
+  · Total stock <strong style="color:var(--text)">{{ total_stock_kg }} kg</strong>
+  · {{ total_value_paise | format_paise }}
+  {% if low_only %}<span class="text-warn"> · Low-stock filter active</span>{% endif %}
+</p>
+
+{# ── table ── #}
+<div class="card" style="padding:0; overflow:hidden;">
+  {% if rows %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          {{ _th('SKU',      'sku',      sort, desc) }}
+          {{ _th('Material', 'material', sort, desc) }}
+          {{ _th('Shape',    'shape',    sort, desc) }}
+          {{ _th('Size',     'size',     sort, desc) }}
+          {{ _th('Color',    'color',    sort, desc) }}
+          {{ _th('In stock', 'stock',    sort, desc) }}
+          {{ _th('Price / kg', 'price', sort, desc) }}
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in rows %}
+        <tr>
+          <td style="font-family:monospace; font-size:12.5px;">
+            <a href="{{ url_for('products.product_edit', product_id=p.id) }}"
+               style="color:var(--text); font-weight:500;">{{ p.sku | e }}</a>
+            {% if not p.active %}<span class="text-muted text-sm"> (inactive)</span>{% endif %}
+          </td>
+          <td>{{ p.material_name or '—' }}</td>
+          <td>{{ p.shape_name or '—' }}</td>
+          <td>{{ p.size_mm | format_size }}</td>
+          <td>{{ p.color_name or '—' }}</td>
+          <td>
+            {% if p.reorder_grams > 0 and p.stock_grams <= p.reorder_grams %}
+              <span class="low-badge">{{ p.stock_grams | format_grams }} · Low</span>
+            {% else %}
+              {{ p.stock_grams | format_grams }}
+            {% endif %}
+          </td>
+          <td>{{ p.price_per_kg_paise | format_paise }}</td>
+          <td>
+            <a class="action-link" href="{{ url_for('products.product_adjust', product_id=p.id) }}">Adjust</a>
+            <a class="action-link" href="#">Label</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p style="padding:32px; text-align:center; color:var(--muted);">
+      No products found.
+      {% if not q and not f_material and not f_shape and not f_size and not f_color %}
+        <a href="{{ url_for('products.product_new') }}">Add your first product.</a>
+      {% endif %}
+    </p>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% macro _th(label, col, cur_sort, cur_desc) %}
+  {% set is_active = cur_sort == col %}
+  {% set next_desc = '1' if (is_active and not cur_desc) else '' %}
+  <th>
+    <a href="{{ url_for('products.product_list',
+        q=q, material=f_material, shape=f_shape, size=f_size, color=f_color,
+        low='1' if low_only else '', all='1' if show_all else '',
+        sort=col, desc=next_desc) }}"
+       style="color:{{ 'var(--green)' if is_active else 'var(--muted)' }}; text-decoration:none;">
+      {{ label }}{% if is_active %} {{ '↓' if cur_desc else '↑' }}{% endif %}
+    </a>
+  </th>
+{% endmacro %}
+
+{% block scripts %}
+<script>
+function submitExact() {
+  var form = document.getElementById('filter-form');
+  var inp = document.createElement('input');
+  inp.type = 'hidden'; inp.name = 'exact'; inp.value = '1';
+  form.appendChild(inp);
+  form.submit();
+}
+</script>
+{% endblock %}
