@@ -33,7 +33,7 @@ def _bump_po_number(db, nxt: int) -> None:
 
 
 def _po_lines(db, po_id: int):
-    return db.execute("""
+    rows = db.execute("""
         SELECT pl.id, pl.grams, pl.cost_per_kg_paise, pl.received_grams,
                p.id AS product_id, p.sku, p.name AS product_name,
                p.cost_per_kg_paise AS product_cost
@@ -42,6 +42,14 @@ def _po_lines(db, po_id: int):
         WHERE pl.po_id = ?
         ORDER BY pl.id
     """, (po_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _products_for_form(db):
+    rows = db.execute(
+        "SELECT p.id, p.sku, p.name, p.cost_per_kg_paise FROM products p WHERE p.active=1 ORDER BY p.name"
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def _update_po_status(db, po_id: int, lines) -> None:
@@ -105,9 +113,7 @@ def po_new():
     if r: return r
     db = get_db()
     suppliers = db.execute("SELECT id, name FROM suppliers ORDER BY name").fetchall()
-    products  = db.execute(
-        "SELECT p.id, p.sku, p.name, p.cost_per_kg_paise FROM products p WHERE p.active=1 ORDER BY p.name"
-    ).fetchall()
+    products  = _products_for_form(db)
     po_number, nxt = _next_po_number(db)
 
     if request.method == 'POST':
@@ -159,9 +165,7 @@ def po_edit(po_id: int):
         return redirect(url_for('po.po_detail', po_id=po_id))
 
     suppliers = db.execute("SELECT id, name FROM suppliers ORDER BY name").fetchall()
-    products  = db.execute(
-        "SELECT p.id, p.sku, p.name, p.cost_per_kg_paise FROM products p WHERE p.active=1 ORDER BY p.name"
-    ).fetchall()
+    products  = _products_for_form(db)
     existing_lines = _po_lines(db, po_id)
 
     if request.method == 'POST':
