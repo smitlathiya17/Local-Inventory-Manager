@@ -1,0 +1,38 @@
+name: Build Windows exe
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download vendor assets
+        run: python manage.py download-vendor
+
+      - name: Build with PyInstaller
+        run: pyinstaller build/beads_manager.spec --distpath dist --workpath build/work
+
+      - name: Copy Start.bat into dist
+        run: copy Start.bat dist\BeadsManager\Start.bat
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BeadsManager-Windows
+          path: dist/BeadsManager/
+          retention-days: 30

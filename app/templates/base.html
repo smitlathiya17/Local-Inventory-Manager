@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Beads Manager{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="app-layout">
+
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-logo">Beads Manager</span>
+    </div>
+    <ul class="sidebar-nav">
+      <li><a href="{{ url_for('main.dashboard') }}"    class="{{ 'active' if request.endpoint == 'main.dashboard' }}">Dashboard</a></li>
+      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('products.') }}">Products</a></li>
+      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('stock.') }}">Total stock</a></li>
+      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('po.') }}">Purchase orders</a></li>
+      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('sales.') }}">Sales</a></li>
+      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('quotes.') }}">Quotations</a></li>
+      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('customers.') }}">Customers</a></li>
+      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('suppliers.') }}">Suppliers</a></li>
+      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('labels.') }}">Labels</a></li>
+      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('excel.') }}">Excel &amp; backup</a></li>
+      <li><a href="{{ url_for('settings.settings') }}" class="{{ 'active' if request.endpoint == 'settings.settings' }}">Settings</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div>Data folder: <strong>{{ data_folder_name }}</strong></div>
+      {% if last_saved %}<div>Saved {{ last_saved }}</div>{% endif %}
+    </div>
+  </nav>
+
+  <main id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+        {% block page_subtitle %}{% endblock %}
+      </div>
+      <div class="page-actions">{% block page_actions %}{% endblock %}</div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div style="padding: 0 32px">
+          {% for cat, msg in messages %}
+            <div class="banner banner-{{ cat }}">{{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="page-content">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

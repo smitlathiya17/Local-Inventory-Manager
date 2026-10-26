@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beads Manager – Choose data folder</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body class="setup-body">
+  <div class="setup-container">
+    <div class="setup-card">
+      <h1>Beads Manager</h1>
+      <p class="setup-subtitle">Choose a folder to store your data. It can live on a pendrive.</p>
+
+      <div class="browser-bar">
+        <span id="current-path" class="browser-path">Loading…</span>
+        <button type="button" id="btn-up" class="btn btn-secondary btn-sm" onclick="navigateUp()" disabled>Up</button>
+      </div>
+
+      <div id="folder-list" class="folder-list"></div>
+
+      <div id="new-folder-row" class="new-folder-row" style="display:none">
+        <input type="text" id="new-folder-name" class="input input-sm" placeholder="New folder name"
+               onkeydown="if(event.key==='Enter')createFolder();if(event.key==='Escape')cancelCreate()">
+        <button type="button" class="btn btn-primary btn-sm" onclick="createFolder()">Create</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="cancelCreate()">Cancel</button>
+      </div>
+
+      <div id="lock-warning" class="lock-warning" style="display:none"></div>
+
+      <div class="setup-actions">
+        <button type="button" class="btn btn-secondary" onclick="showNewFolder()">New folder here</button>
+        <button type="button" id="btn-select" class="btn btn-primary" onclick="selectFolder()">Use this folder</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var currentPath = {{ start_path | tojson }};
+    var pendingStale = null;
+
+    async function browse(path) {
+      var url = '/api/browse';
+      if (path) url += '?path=' + encodeURIComponent(path);
+      var resp = await fetch(url);
+      var data = await resp.json();
+      if (data.error) { alert(data.error); return; }
+      renderBrowser(data);
+    }
+
+    function renderBrowser(data) {
+      currentPath = data.path || '';
+      document.getElementById('current-path').textContent = data.path || 'Drives';
+      document.getElementById('btn-up').disabled = !data.parent;
+
+      var list = document.getElementById('folder-list');
+      list.innerHTML = '';
+
+      if (!data.entries || data.entries.length === 0) {
+        var empty = document.createElement('div');
+        empty.className = 'folder-empty';
+        empty.textContent = 'Empty folder – create one below';
+        list.appendChild(empty);
+        return;
+      }
+
+      data.entries.forEach(function(entry) {
+        var div = document.createElement('div');
+        div.className = 'folder-entry';
+        div.textContent = entry.name;
+        div.onclick = function() { browse(entry.path); };
+        list.appendChild(div);
+      });
+    }
+
+    function navigateUp() {
+      // re-browse with no path to get drives list on Windows, or go up
+      fetch('/api/browse?path=' + encodeURIComponent(currentPath))
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.parent) browse(d.parent); else browse('');
+        });
+    }
+
+    function showNewFolder() {
+      document.getElementById('new-folder-row').style.display = 'flex';
+      document.getElementById('new-folder-name').focus();
+    }
+
+    function cancelCreate() {
+      document.getElementById('new-folder-row').style.display = 'none';
+      document.getElementById('new-folder-name').value = '';
+    }
+
+    async function createFolder() {
+      var name = document.getElementById('new-folder-name').value.trim();
+      if (!name) return;
+      var resp = await fetch('/api/create-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent: currentPath, name: name })
+      });
+      var data = await resp.json();
+      if (data.error) { alert('Could not create folder: ' + data.error); return; }
+      cancelCreate();
+      browse(data.path);
+    }
+
+    async function selectFolder() {
+      if (!currentPath) { alert('Navigate to a folder first, then click "Use this folder".'); return; }
+      document.getElementById('btn-select').disabled = true;
+      document.getElementById('btn-select').textContent = 'Opening…';
+      var resp = await fetch('/api/select-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: currentPath })
+      });
+      var data = await resp.json();
+      if (data.status === 'ok') {
+        window.location.href = data.redirect;
+      } else if (data.status === 'stale') {
+        pendingStale = data.path;
+        var warn = document.getElementById('lock-warning');
+        warn.innerHTML = 'A previous session (PID ' + data.pid + ') didn\'t close cleanly. '
+          + '<button onclick="forceOpen()" class="btn btn-warning btn-sm">Force open</button>';
+        warn.style.display = 'flex';
+        document.getElementById('btn-select').disabled = false;
+        document.getElementById('btn-select').textContent = 'Use this folder';
+      } else if (data.status === 'live') {
+        alert('Beads Manager is already open in another window (PID ' + data.pid + '). Close it first.');
+        document.getElementById('btn-select').disabled = false;
+        document.getElementById('btn-select').textContent = 'Use this folder';
+      }
+    }
+
+    async function forceOpen() {
+      var resp = await fetch('/api/force-open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: pendingStale })
+      });
+      var data = await resp.json();
+      if (data.status === 'ok') window.location.href = data.redirect;
+    }
+
+    // Initial browse
+    browse(currentPath);
+  </script>
+</body>
+</html>
