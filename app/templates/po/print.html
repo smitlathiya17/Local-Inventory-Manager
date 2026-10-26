@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ po.po_number }} – Purchase Order</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 32px; }
+    .no-print { margin-bottom: 20px; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 20px 0; }
+    .label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { border: 1px solid #ddd; padding: 7px 10px; text-align: left; }
+    th { background: #f5f5f5; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    tfoot td { font-weight: 600; background: #f5f5f5; }
+    .sig-row { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-top: 48px; }
+    .sig-line { border-top: 1px solid #333; padding-top: 6px; font-size: 11px; color: #666; }
+    @media print {
+      .no-print { display: none !important; }
+      body { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button onclick="window.print()" style="padding:8px 16px; background:#0F6E56; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:13px;">Print / Save as PDF</button>
+    <button onclick="window.close()" style="padding:8px 16px; background:#eee; border:none; border-radius:6px; cursor:pointer; margin-left:8px; font-size:13px;">Close</button>
+  </div>
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <h1>Purchase Order</h1>
+      <div style="font-size:18px; font-family:monospace; color:#0F6E56;">{{ po.po_number }}</div>
+    </div>
+    <div style="text-align:right;">
+      {% if settings.business_name %}
+        <div style="font-size:16px; font-weight:700;">{{ settings.business_name | e }}</div>
+      {% endif %}
+      {% if settings.business_address %}
+        <div style="font-size:12px; color:#555; white-space:pre-line;">{{ settings.business_address | e }}</div>
+      {% endif %}
+      {% if settings.business_phone %}
+        <div style="font-size:12px; color:#555;">{{ settings.business_phone | e }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="header-grid">
+    <div>
+      <div class="label">Supplier</div>
+      <div style="font-weight:600;">{{ po.supplier_name or '—' }}</div>
+      {% if po.supplier_address %}<div style="font-size:12px; color:#555;">{{ po.supplier_address | e }}</div>{% endif %}
+      {% if po.supplier_phone  %}<div style="font-size:12px; color:#555;">{{ po.supplier_phone | e }}</div>{% endif %}
+    </div>
+    <div>
+      <div class="label">Order date</div>
+      <div>{{ po.date | format_date }}</div>
+      {% if po.expected_date %}
+        <div class="label" style="margin-top:8px;">Expected delivery</div>
+        <div>{{ po.expected_date | format_date }}</div>
+      {% endif %}
+      <div class="label" style="margin-top:8px;">Status</div>
+      <div>{{ po.status }}</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>SKU</th><th>Product</th><th>Qty (kg)</th><th>Cost / kg</th><th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lines %}
+      <tr>
+        <td style="font-family:monospace;">{{ l.sku | e }}</td>
+        <td>{{ l.product_name | e }}</td>
+        <td>{{ l.grams | format_grams }}</td>
+        <td>{{ l.cost_per_kg_paise | format_paise }}</td>
+        <td>{{ calc_line_total(l.cost_per_kg_paise, l.grams) | format_paise }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" style="text-align:right;">Total</td>
+        <td>{{ total_paise | format_paise }}</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  {% if po.notes %}
+    <div style="margin-top:12px;">
+      <div class="label">Notes</div>
+      <div>{{ po.notes | e }}</div>
+    </div>
+  {% endif %}
+
+  <div class="sig-row">
+    <div><div class="sig-line">Authorised by</div></div>
+    <div><div class="sig-line">Received by</div></div>
+  </div>
+</body>
+</html>

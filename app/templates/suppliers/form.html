@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% set is_new = supplier is none %}
+{% block page_title %}{{ 'Add supplier' if is_new else 'Edit supplier' }}{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('suppliers.supplier_list') }}" class="btn btn-secondary">← Back</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:520px;">
+  <form method="post" class="card">
+    <div class="form-group">
+      <label for="name">Name <span style="color:var(--warn)">*</span></label>
+      <input id="name" name="name" type="text" class="input" required
+             value="{{ (form.name or supplier.name if not is_new else form.get('name','')) | e }}">
+    </div>
+    <div class="form-group">
+      <label for="contact">Contact person</label>
+      <input id="contact" name="contact" type="text" class="input"
+             value="{{ (form.contact or (supplier.contact if not is_new else '')) | e }}">
+    </div>
+    <div class="form-group">
+      <label for="phone">Phone</label>
+      <input id="phone" name="phone" type="text" class="input"
+             value="{{ (form.phone or (supplier.phone if not is_new else '')) | e }}">
+    </div>
+    <div class="form-group">
+      <label for="address">Address</label>
+      <textarea id="address" name="address" class="input" rows="2">{{ (form.address or (supplier.address if not is_new else '')) | e }}</textarea>
+    </div>
+    <div class="form-group">
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes" class="input" rows="2">{{ (form.notes or (supplier.notes if not is_new else '')) | e }}</textarea>
+    </div>
+    <div style="display:flex; justify-content:flex-end;">
+      <button type="submit" class="btn btn-primary">{{ 'Add supplier' if is_new else 'Save changes' }}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

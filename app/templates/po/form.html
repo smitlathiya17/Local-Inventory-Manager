@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% set is_new = po is none %}
+{% block page_title %}{{ 'New purchase order' if is_new else 'Edit ' + po.po_number }}{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('po.po_list') }}" class="btn btn-secondary">← Back</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:840px;">
+<form method="post" id="po-form">
+  <input type="hidden" id="line-count" name="line_count" value="0">
+
+  {# ── header fields ── #}
+  <div class="card mb-2">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>PO number</label>
+        <div class="input" style="background:var(--bg); cursor:default; font-family:monospace;">{{ po_number }}</div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="supplier_id">Supplier</label>
+        <select id="supplier_id" name="supplier_id" class="input">
+          <option value="">— Walk-in / Unknown —</option>
+          {% for s in suppliers %}
+            <option value="{{ s.id }}"
+              {{ 'selected' if (form.supplier_id == s.id|string) or (not is_new and po.supplier_id == s.id) }}>
+              {{ s.name | e }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="date">Order date</label>
+        <input id="date" name="date" type="date" class="input"
+               value="{{ form.date or (po.date if not is_new else '') or today_iso() }}">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="expected_date">Expected delivery</label>
+        <input id="expected_date" name="expected_date" type="date" class="input"
+               value="{{ form.expected_date or (po.expected_date if not is_new else '') or '' }}">
+      </div>
+      <div class="form-group" style="margin-bottom:0; grid-column:span 2;">
+        <label for="notes">Notes</label>
+        <input id="notes" name="notes" type="text" class="input"
+               value="{{ form.notes or (po.notes if not is_new else '') | e }}">
+      </div>
+    </div>
+  </div>
+
+  {# ── lines ── #}
+  <div class="card mb-2">
+    <div class="flex-between mb-2">
+      <h3 style="font-size:14px; font-weight:600;">Order lines</h3>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addLine()">+ Add line</button>
+    </div>
+    <div class="table-wrap">
+      <table id="lines-table">
+        <thead>
+          <tr>
+            <th style="width:40%">Product</th>
+            <th style="width:18%">Qty (kg)</th>
+            <th style="width:22%">Cost per kg (₹)</th>
+            <th style="width:15%">Line total</th>
+            <th style="width:5%"></th>
+          </tr>
+        </thead>
+        <tbody id="lines-body"></tbody>
+      </table>
+    </div>
+    <div id="po-total" style="text-align:right; font-size:14px; font-weight:600; margin-top:10px; color:var(--muted);">Total: ₹0</div>
+  </div>
+
+  <div style="display:flex; justify-content:flex-end;">
+    <button type="submit" class="btn btn-primary">{{ 'Create order' if is_new else 'Save changes' }}</button>
+  </div>
+</form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var PRODUCTS = {{ products | tojson }};
+var productMap = {};
+PRODUCTS.forEach(function(p) { productMap[p.id] = p; });
+
+var lineIdx = 0;
+
+// Pre-populate existing lines (edit mode)
+var EXISTING = {{ lines | tojson }};
+EXISTING.forEach(function(l) {
+  addLine(l.product_id, l.grams / 1000, l.cost_per_kg_paise / 100);
+});
+if (EXISTING.length === 0) addLine();
+
+function addLine(productId, qtyKg, costPerKg) {
+  var i = lineIdx++;
+  var tbody = document.getElementById('lines-body');
+  var tr = document.createElement('tr');
+  tr.id = 'line-' + i;
+  tr.innerHTML =
+    '<td><select name="product_id_' + i + '" class="input input-sm" onchange="onProductChange(' + i + ',this.value)">' +
+    '<option value="">— Select product —</option>' +
+    PRODUCTS.map(function(p) {
+      return '<option value="' + p.id + '"' + (productId == p.id ? ' selected' : '') + '>' +
+             escHtml(p.sku + ' – ' + p.name) + '</option>';
+    }).join('') +
+    '</select></td>' +
+    '<td><input type="number" name="qty_kg_' + i + '" id="qty_' + i + '" step="0.001" min="0.001" class="input input-sm"' +
+    (qtyKg ? ' value="' + qtyKg.toFixed(3) + '"' : '') + ' oninput="recalc(' + i + ')"></td>' +
+    '<td><input type="number" name="cost_per_kg_' + i + '" id="cost_' + i + '" step="0.01" min="0" class="input input-sm"' +
+    (costPerKg !== undefined ? ' value="' + costPerKg.toFixed(2) + '"' : '') + ' oninput="recalcTotal()"></td>' +
+    '<td id="lt_' + i + '" style="font-size:13px; color:var(--muted);">—</td>' +
+    '<td><button type="button" class="btn btn-secondary btn-sm" onclick="removeLine(' + i + ')">✕</button></td>';
+  tbody.appendChild(tr);
+  updateLineCount();
+  recalc(i);
+}
+
+function removeLine(i) {
+  var row = document.getElementById('line-' + i);
+  if (row) row.remove();
+  updateLineCount();
+  recalcTotal();
+}
+
+function onProductChange(i, pid) {
+  var p = productMap[pid];
+  if (p) {
+    var costEl = document.getElementById('cost_' + i);
+    if (!costEl.dataset.touched) costEl.value = (p.cost_per_kg_paise / 100).toFixed(2);
+    recalc(i);
+  }
+}
+
+function recalc(i) {
+  var qty  = parseFloat(document.querySelector('[name="qty_kg_' + i + '"]').value) || 0;
+  var cost = parseFloat(document.querySelector('[name="cost_per_kg_' + i + '"]').value) || 0;
+  var lt   = document.getElementById('lt_' + i);
+  if (lt) lt.textContent = qty && cost ? '₹' + (qty * cost).toFixed(2) : '—';
+  recalcTotal();
+}
+
+function recalcTotal() {
+  var total = 0;
+  document.querySelectorAll('#lines-body tr').forEach(function(tr) {
+    var i = tr.id.replace('line-', '');
+    var qty  = parseFloat(document.querySelector('[name="qty_kg_' + i + '"]').value) || 0;
+    var cost = parseFloat(document.querySelector('[name="cost_per_kg_' + i + '"]').value) || 0;
+    total += qty * cost;
+  });
+  document.getElementById('po-total').textContent = 'Total: ₹' + total.toFixed(2);
+}
+
+function updateLineCount() {
+  document.getElementById('line-count').value = lineIdx;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.querySelectorAll('[name^="cost_per_kg_"]').forEach(function(el) {
+  el.addEventListener('input', function() { this.dataset.touched = '1'; });
+});
+</script>
+{% endblock %}

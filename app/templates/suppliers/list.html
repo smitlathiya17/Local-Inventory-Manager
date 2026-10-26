@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block page_title %}Suppliers{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('suppliers.supplier_new') }}" class="btn btn-primary">Add supplier</a>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="padding:0; overflow:hidden;">
+  {% if rows %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th><th>Contact</th><th>Phone</th><th>Address</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in rows %}
+        <tr>
+          <td style="font-weight:500;">{{ s.name | e }}</td>
+          <td>{{ s.contact | e or '—' }}</td>
+          <td>{{ s.phone | e or '—' }}</td>
+          <td class="text-muted">{{ s.address | e or '—' }}</td>
+          <td>
+            <a class="action-link" href="{{ url_for('suppliers.supplier_edit', supplier_id=s.id) }}">Edit</a>
+            <a class="action-link" href="{{ url_for('po.po_list') }}?supplier={{ s.id }}">Orders</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p style="padding:32px; text-align:center; color:var(--muted);">
+      No suppliers yet. <a href="{{ url_for('suppliers.supplier_new') }}">Add one.</a>
+    </p>
+  {% endif %}
+</div>
+{% endblock %}

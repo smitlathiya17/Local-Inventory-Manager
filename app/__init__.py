@@ -21,13 +21,17 @@ def create_app() -> Flask:
     from app.routes.main import main_bp
     from app.routes.settings import settings_bp
     from app.routes.products import products_bp
+    from app.routes.suppliers import suppliers_bp
+    from app.routes.purchase_orders import po_bp
 
     app.register_blueprint(setup_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(products_bp)
+    app.register_blueprint(suppliers_bp)
+    app.register_blueprint(po_bp)
 
-    from app.utils import paise_to_rupees_str, format_date, grams_to_kg_str
+    from app.utils import paise_to_rupees_str, format_date, grams_to_kg_str, calc_line_total_paise, today_iso
 
     @app.template_filter('format_paise')
     def _fmt_paise(paise):
@@ -47,6 +51,9 @@ def create_app() -> Flask:
             return '—'
         n = float(size_mm)
         return f'{int(n)} mm' if n == int(n) else f'{n} mm'
+
+    app.jinja_env.globals['calc_line_total'] = calc_line_total_paise
+    app.jinja_env.globals['today_iso']       = today_iso
 
     @app.context_processor
     def _sidebar_vars():

@@ -401,6 +401,25 @@ body.shutdown-body {
 .shutdown-card h2 { font-size: 20px; margin-bottom: 8px; }
 .shutdown-card p  { color: var(--muted); font-size: 13.5px; line-height: 1.5; }
 
+/* ── status badges ───────────────────────────────────────────────────────── */
+.status-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.status-draft           { background: #F0EFED; color: var(--muted); }
+.status-ordered         { background: #E8F0FD; color: #2563EB; }
+.status-partly_received { background: var(--warn-lt); color: var(--warn); }
+.status-received        { background: var(--green-lt); color: var(--green); }
+.status-cancelled       { background: #FDE8E8; color: var(--red); }
+.status-paid            { background: var(--green-lt); color: var(--green); }
+.status-part_paid       { background: var(--warn-lt); color: var(--warn); }
+.status-pending         { background: #F0EFED; color: var(--muted); }
+.status-void            { background: #FDE8E8; color: var(--red); }
+
 /* ── misc helpers ────────────────────────────────────────────────────────── */
 .text-muted  { color: var(--muted); }
 .text-warn   { color: var(--warn); }
