@@ -20,18 +20,14 @@
                style="font-family:monospace;" required>
       </div>
       <div class="form-group" style="margin-bottom:0;">
-        <label for="customer_id">Customer</label>
-        <select id="customer_id" name="customer_id" class="input">
-          <option value="">— Walk-in —</option>
-          {% for c in customers %}
-            <option value="{{ c.id }}"
-              {{ 'selected' if (form.customer_id == c.id|string)
-                            or (not is_new and sale.customer_id == c.id)
-                            or (request.args.get('customer_id') == c.id|string) }}>
-              {{ c.name | e }}
-            </option>
-          {% endfor %}
-        </select>
+        <label for="customer_search">Customer</label>
+        <input type="hidden" id="customer_id" name="customer_id"
+               value="{{ form.customer_id or (sale.customer_id|string if not is_new else '') or request.args.get('customer_id', '') }}">
+        <div class="search-combo">
+          <input type="text" id="customer_search" class="input" autocomplete="off"
+                 placeholder="— Walk-in —">
+          <div id="customer_list" class="search-combo-list" style="display:none;"></div>
+        </div>
       </div>
       <div class="form-group" style="margin-bottom:0;">
         <label for="date">Date</label>
@@ -90,7 +86,6 @@
           <option value="cash">Cash</option>
           <option value="upi">UPI</option>
           <option value="bank">Bank transfer</option>
-          <option value="cheque">Cheque</option>
         </select>
       </div>
       <div class="form-group" style="margin-bottom:0;">
@@ -110,6 +105,69 @@
 
 {% block scripts %}
 <script>
+function initSearchCombo(inputId, hiddenId, listId, items) {
+  var input  = document.getElementById(inputId);
+  var hidden = document.getElementById(hiddenId);
+  var list   = document.getElementById(listId);
+  function showList(q) {
+    q = (q || '').toLowerCase().trim();
+    var matches = items.filter(function(it) { return !q || it.name.toLowerCase().indexOf(q) >= 0; });
+    list.innerHTML = '';
+    matches.slice(0, 30).forEach(function(it) {
+      var div = document.createElement('div');
+      div.className = 'search-combo-item';
+      div.textContent = it.name;
+      div.onmousedown = function(e) { e.preventDefault(); pick(it); };
+      list.appendChild(div);
+    });
+    list.style.display = matches.length ? '' : 'none';
+  }
+  function pick(it) {
+    hidden.value = it.id;
+    input.value  = it.id ? it.name : '';
+    input.placeholder = it.id ? '' : (items[0] && !items[0].id ? items[0].name : '—');
+    list.style.display = 'none';
+  }
+  input.addEventListener('focus', function() { showList(this.value); });
+  input.addEventListener('input', function() { hidden.value = ''; showList(this.value); });
+  input.addEventListener('keydown', function(e) {
+    var els = list.querySelectorAll('.search-combo-item');
+    var hi  = list.querySelector('.search-combo-item.active');
+    var idx = hi ? Array.from(els).indexOf(hi) : -1;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (hi) hi.classList.remove('active');
+      els[Math.min(idx + 1, els.length - 1)].classList.add('active');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (hi) hi.classList.remove('active');
+      if (idx > 0) els[idx - 1].classList.add('active');
+    } else if (e.key === 'Enter') {
+      hi = list.querySelector('.search-combo-item.active');
+      if (hi && list.style.display !== 'none') { e.preventDefault(); hi.onmousedown({preventDefault:function(){}}); }
+    } else if (e.key === 'Escape') { list.style.display = 'none'; }
+  });
+  input.addEventListener('blur', function() {
+    setTimeout(function() {
+      list.style.display = 'none';
+      if (!hidden.value) { input.value = ''; }
+      else {
+        var found = items.find(function(it) { return String(it.id) === String(hidden.value); });
+        if (found) input.value = found.name;
+      }
+    }, 200);
+  });
+  var initId = String(hidden.value || '');
+  if (initId) {
+    var found = items.find(function(it) { return String(it.id) === initId; });
+    if (found) { input.value = found.name; input.placeholder = ''; }
+  }
+}
+
+var CUSTOMERS = [{id:'', name:'— Walk-in —'}];
+{% for c in customers %}CUSTOMERS.push({id:'{{ c.id }}', name:{{ c.name | tojson }}});{% endfor %}
+initSearchCombo('customer_search', 'customer_id', 'customer_list', CUSTOMERS);
+
 var PRODUCTS = {{ products | tojson }};
 var productMap = {};
 PRODUCTS.forEach(function(p) { productMap[p.id] = p; });

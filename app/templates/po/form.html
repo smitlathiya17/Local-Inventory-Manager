@@ -20,16 +20,14 @@
                placeholder="e.g. CH-0001" style="font-family:monospace;" required>
       </div>
       <div class="form-group" style="margin-bottom:0;">
-        <label for="supplier_id">Supplier</label>
-        <select id="supplier_id" name="supplier_id" class="input">
-          <option value="">— Walk-in / Unknown —</option>
-          {% for s in suppliers %}
-            <option value="{{ s.id }}"
-              {{ 'selected' if (form.supplier_id == s.id|string) or (not is_new and po.supplier_id == s.id) }}>
-              {{ s.name | e }}
-            </option>
-          {% endfor %}
-        </select>
+        <label for="supplier_search">Supplier</label>
+        <input type="hidden" id="supplier_id" name="supplier_id"
+               value="{{ form.supplier_id or (po.supplier_id|string if not is_new else '') }}">
+        <div class="search-combo">
+          <input type="text" id="supplier_search" class="input" autocomplete="off"
+                 placeholder="— Walk-in / Unknown —">
+          <div id="supplier_list" class="search-combo-list" style="display:none;"></div>
+        </div>
       </div>
       <div class="form-group" style="margin-bottom:0;">
         <label for="date">Order date</label>
@@ -87,6 +85,69 @@
 
 {% block scripts %}
 <script>
+function initSearchCombo(inputId, hiddenId, listId, items) {
+  var input  = document.getElementById(inputId);
+  var hidden = document.getElementById(hiddenId);
+  var list   = document.getElementById(listId);
+  function showList(q) {
+    q = (q || '').toLowerCase().trim();
+    var matches = items.filter(function(it) { return !q || it.name.toLowerCase().indexOf(q) >= 0; });
+    list.innerHTML = '';
+    matches.slice(0, 30).forEach(function(it) {
+      var div = document.createElement('div');
+      div.className = 'search-combo-item';
+      div.textContent = it.name;
+      div.onmousedown = function(e) { e.preventDefault(); pick(it); };
+      list.appendChild(div);
+    });
+    list.style.display = matches.length ? '' : 'none';
+  }
+  function pick(it) {
+    hidden.value = it.id;
+    input.value  = it.id ? it.name : '';
+    input.placeholder = it.id ? '' : (items[0] && !items[0].id ? items[0].name : '—');
+    list.style.display = 'none';
+  }
+  input.addEventListener('focus', function() { showList(this.value); });
+  input.addEventListener('input', function() { hidden.value = ''; showList(this.value); });
+  input.addEventListener('keydown', function(e) {
+    var els = list.querySelectorAll('.search-combo-item');
+    var hi  = list.querySelector('.search-combo-item.active');
+    var idx = hi ? Array.from(els).indexOf(hi) : -1;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (hi) hi.classList.remove('active');
+      els[Math.min(idx + 1, els.length - 1)].classList.add('active');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (hi) hi.classList.remove('active');
+      if (idx > 0) els[idx - 1].classList.add('active');
+    } else if (e.key === 'Enter') {
+      hi = list.querySelector('.search-combo-item.active');
+      if (hi && list.style.display !== 'none') { e.preventDefault(); hi.onmousedown({preventDefault:function(){}}); }
+    } else if (e.key === 'Escape') { list.style.display = 'none'; }
+  });
+  input.addEventListener('blur', function() {
+    setTimeout(function() {
+      list.style.display = 'none';
+      if (!hidden.value) { input.value = ''; }
+      else {
+        var found = items.find(function(it) { return String(it.id) === String(hidden.value); });
+        if (found) input.value = found.name;
+      }
+    }, 200);
+  });
+  var initId = String(hidden.value || '');
+  if (initId) {
+    var found = items.find(function(it) { return String(it.id) === initId; });
+    if (found) { input.value = found.name; input.placeholder = ''; }
+  }
+}
+
+var SUPPLIERS = [{id:'', name:'— Walk-in / Unknown —'}];
+{% for s in suppliers %}SUPPLIERS.push({id:'{{ s.id }}', name:{{ s.name | tojson }}});{% endfor %}
+initSearchCombo('supplier_search', 'supplier_id', 'supplier_list', SUPPLIERS);
+
 var PRODUCTS = {{ products | tojson }};
 var productMap = {};
 PRODUCTS.forEach(function(p) { productMap[p.id] = p; });

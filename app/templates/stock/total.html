@@ -33,8 +33,7 @@
       <thead>
         <tr>
           <th>{{ group_by | join(' · ') | title if group_by else 'Product' }}</th>
-          {% if not group_by %}<th>SKU</th>{% endif %}
-          <th>Products</th>
+          {% if group_by %}<th>Products</th>{% endif %}
           <th style="text-align:right;">In stock</th>
           <th style="text-align:right;">Value at cost</th>
         </tr>
@@ -43,14 +42,7 @@
         {% for r in rows %}
         <tr>
           <td>{{ r.grp }}</td>
-          {% if not group_by %}
-            {# grp already includes SKU prefix — skip separate column #}
-          {% else %}
-            <td style="color:var(--muted);">{{ r.products }}</td>
-          {% endif %}
-          {% if not group_by %}
-            <td style="color:var(--muted);">1</td>
-          {% endif %}
+          {% if group_by %}<td style="color:var(--muted);">{{ r.products }}</td>{% endif %}
           <td style="text-align:right; font-family:monospace;">{{ r.total_grams | format_grams }} kg</td>
           <td style="text-align:right; font-family:monospace;">{{ r.value_paise | int | format_paise }}</td>
         </tr>
@@ -58,7 +50,7 @@
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="{{ 3 if group_by else 3 }}" style="text-align:right; font-weight:600; color:var(--muted);">Total</td>
+          <td colspan="{{ 2 if group_by else 1 }}" style="text-align:right; font-weight:600; color:var(--muted);">Total</td>
           <td style="text-align:right; font-family:monospace; font-weight:700;">{{ total_grams | format_grams }} kg</td>
           <td style="text-align:right; font-family:monospace; font-weight:700;">{{ total_value | format_paise }}</td>
         </tr>

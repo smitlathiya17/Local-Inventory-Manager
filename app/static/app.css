@@ -471,3 +471,27 @@ body.shutdown-body {
 @media (max-width: 860px) {
   .panel-grid { grid-template-columns: 1fr; }
 }
+
+/* ── searchable combo ────────────────────────────────────────────────────── */
+.search-combo { position: relative; }
+.search-combo-list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0; right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 300;
+}
+.search-combo-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.search-combo-item:last-child { border-bottom: none; }
+.search-combo-item:hover,
+.search-combo-item.active { background: var(--bg); }
