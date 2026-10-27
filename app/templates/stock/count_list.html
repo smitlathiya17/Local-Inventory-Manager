@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block page_title %}Stock Counts{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('stock.total_stock') }}" class="btn btn-secondary">← Total stock</a>
+{% endblock %}
+
+{% block content %}
+
+{# ── start new count form ── #}
+<div class="card card-sm mb-2">
+  <form method="post" action="{{ url_for('stock.count_new') }}"
+        style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+    <div>
+      <label>Count name</label>
+      <input name="name" type="text" class="input input-sm" style="width:200px;"
+             placeholder="e.g. Monthly count">
+    </div>
+    <div>
+      <label>Date</label>
+      <input name="date" type="date" class="input input-sm" value="{{ today_iso() }}">
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Start new count</button>
+  </form>
+</div>
+
+<div class="card" style="padding:0; overflow:hidden;">
+  {% if counts %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Date</th><th>Products</th><th>Entered</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for c in counts %}
+        <tr>
+          <td><a href="{{ url_for('stock.count_detail', count_id=c.id) }}">{{ c.name | e }}</a></td>
+          <td>{{ c.date | format_date }}</td>
+          <td>{{ c.product_count }}</td>
+          <td>{{ c.entered_count }} / {{ c.product_count }}</td>
+          <td><span class="status-badge {{ 'status-received' if c.status == 'Applied' else 'status-draft' }}">{{ c.status }}</span></td>
+          <td>
+            <a class="action-link" href="{{ url_for('stock.count_detail', count_id=c.id) }}">
+              {{ 'View' if c.status == 'Applied' else 'Enter counts' }}
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p style="padding:32px; text-align:center; color:var(--muted);">No stock counts yet. Start one above.</p>
+  {% endif %}
+</div>
+{% endblock %}

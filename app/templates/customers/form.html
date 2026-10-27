@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% set is_new = customer is none %}
+{% block page_title %}{{ 'New customer' if is_new else 'Edit ' + customer.name }}{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('customers.customer_list') }}" class="btn btn-secondary">← Back</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:540px;">
+  <form method="post" class="card">
+    <div class="form-group">
+      <label for="name">Name *</label>
+      <input id="name" name="name" type="text" class="input" required
+             value="{{ form.name or (customer.name if not is_new else '') | e }}">
+    </div>
+    <div class="form-group">
+      <label for="phone">Phone</label>
+      <input id="phone" name="phone" type="text" class="input"
+             value="{{ form.phone or (customer.phone if not is_new else '') | e }}">
+    </div>
+    <div class="form-group">
+      <label for="address">Address</label>
+      <textarea id="address" name="address" class="input" rows="2">{{ form.address or (customer.address if not is_new else '') | e }}</textarea>
+    </div>
+    <div class="form-group">
+      <label for="notes">Notes</label>
+      <input id="notes" name="notes" type="text" class="input"
+             value="{{ form.notes or (customer.notes if not is_new else '') | e }}">
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <a href="{{ url_for('customers.customer_list') }}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary">{{ 'Add customer' if is_new else 'Save changes' }}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

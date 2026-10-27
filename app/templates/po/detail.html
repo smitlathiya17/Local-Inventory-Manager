@@ -15,7 +15,7 @@
   {% endif %}
   {% if po.status not in ('Received', 'Cancelled') %}
     <form method="post" action="{{ url_for('po.po_cancel', po_id=po.id) }}" style="display:inline"
-          onsubmit="return confirm('Cancel this order?')">
+          onsubmit="return confirm('Cancel this challan?')">
       <button type="submit" class="btn btn-secondary">Cancel</button>
     </form>
   {% endif %}

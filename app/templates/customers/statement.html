@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Statement – {{ customer.name | e }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 32px; }
+    .no-print { margin-bottom: 20px; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    .label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { border: 1px solid #ddd; padding: 7px 10px; text-align: left; }
+    th { background: #f5f5f5; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    .num { text-align: right; font-family: monospace; }
+    .voided { opacity: 0.45; text-decoration: line-through; }
+    tfoot td { font-weight: 600; background: #f5f5f5; }
+    @media print { .no-print { display: none !important; } body { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button onclick="window.print()" style="padding:8px 16px;background:#0F6E56;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">Print / Save as PDF</button>
+    <button onclick="window.close()" style="padding:8px 16px;background:#eee;border:none;border-radius:6px;cursor:pointer;margin-left:8px;font-size:13px;">Close</button>
+  </div>
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
+    <div>
+      <h1>Customer Statement</h1>
+      <div style="font-size:18px; font-weight:700; margin-top:4px;">{{ customer.name | e }}</div>
+      {% if customer.phone %}<div style="color:#555; font-size:12px;">{{ customer.phone | e }}</div>{% endif %}
+      {% if customer.address %}<div style="color:#555; font-size:12px; white-space:pre-line;">{{ customer.address | e }}</div>{% endif %}
+    </div>
+    <div style="text-align:right;">
+      {% if settings.business_name %}<div style="font-size:16px; font-weight:700;">{{ settings.business_name | e }}</div>{% endif %}
+      {% if settings.business_address %}<div style="font-size:12px; color:#555; white-space:pre-line;">{{ settings.business_address | e }}</div>{% endif %}
+      {% if settings.business_phone %}<div style="font-size:12px; color:#555;">{{ settings.business_phone | e }}</div>{% endif %}
+      <div style="font-size:11px; color:#888; margin-top:6px;">As of {{ today | format_date }}</div>
+    </div>
+  </div>
+
+  <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:6px; padding:10px 16px; margin-bottom:16px; display:inline-block;">
+    <span style="font-size:12px; color:#856404;">Outstanding balance:</span>
+    <span style="font-size:20px; font-weight:700; margin-left:8px; color:#856404;">{{ outstanding | format_paise }}</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th><th>Type</th><th>Reference</th>
+        <th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr {% if e.voided %}class="voided"{% endif %}>
+        <td>{{ e.date | format_date }}</td>
+        <td>{{ 'Invoice' if e.type == 'invoice' else 'Payment' }}</td>
+        <td>{{ e.ref | e }}{% if e.get('note') %} – {{ e.note | e }}{% endif %}</td>
+        <td class="num">{{ e.debit | format_paise if e.debit else '' }}</td>
+        <td class="num">{{ e.credit | format_paise if e.credit else '' }}</td>
+        <td class="num" style="font-weight:500;">{{ e.running | format_paise }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5" style="text-align:right;">Outstanding</td>
+        <td class="num">{{ outstanding | format_paise }}</td>
+      </tr>
+    </tfoot>
+  </table>
+</body>
+</html>

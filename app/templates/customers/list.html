@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block page_title %}Customers{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('customers.customer_new') }}" class="btn btn-primary">Add customer</a>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="padding:0; overflow:hidden;">
+  {% if rows %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th><th>Phone</th><th>Sales</th><th>Outstanding</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td><a href="{{ url_for('customers.customer_detail', customer_id=r.id) }}">{{ r.name | e }}</a></td>
+          <td>{{ r.phone or '—' }}</td>
+          <td>{{ r.sale_count }}</td>
+          <td class="{{ 'text-warn' if r.outstanding > 0 }}">
+            {{ r.outstanding | format_paise }}
+          </td>
+          <td>
+            <a class="action-link" href="{{ url_for('customers.customer_detail', customer_id=r.id) }}">View</a>
+            <a class="action-link" href="{{ url_for('customers.customer_edit', customer_id=r.id) }}">Edit</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p style="padding:32px; text-align:center; color:var(--muted);">
+      No customers yet. <a href="{{ url_for('customers.customer_new') }}">Add one.</a>
+    </p>
+  {% endif %}
+</div>
+{% endblock %}

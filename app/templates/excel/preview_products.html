@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block page_title %}Import preview{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('excel.excel_index') }}" class="btn btn-secondary">← Back</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:960px;">
+
+  {# ── summary bar ── #}
+  <div class="card card-sm mb-2" style="display:flex; gap:24px; flex-wrap:wrap; align-items:center;">
+    <div>
+      <span class="text-muted text-sm">Total rows</span><br>
+      <strong>{{ rows | length }}</strong>
+    </div>
+    <div>
+      <span class="text-muted text-sm">Ready to import</span><br>
+      <strong class="{{ 'text-green' if valid_count > 0 }}">{{ valid_count }}</strong>
+    </div>
+    {% if invalid_count > 0 %}
+    <div>
+      <span class="text-muted text-sm">Rows with errors</span><br>
+      <strong class="text-warn">{{ invalid_count }}</strong>
+    </div>
+    {% endif %}
+
+    {% if valid_count > 0 %}
+    <form method="post" action="{{ url_for('excel.import_products') }}"
+          style="margin-left:auto;">
+      <input type="hidden" name="mode"   value="commit">
+      <input type="hidden" name="tmp_id" value="{{ tmp_id }}">
+      <button type="submit" class="btn btn-primary"
+              onclick="return confirm('Import {{ valid_count }} product{{ 's' if valid_count != 1 }}? This cannot be undone.')">
+        Confirm import ({{ valid_count }} product{{ 's' if valid_count != 1 }})
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  {# ── preview table ── #}
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Status</th>
+            <th>SKU</th>
+            <th>Name</th>
+            <th>Material</th>
+            <th>Shape</th>
+            <th style="text-align:right;">Size</th>
+            <th>Color</th>
+            <th style="text-align:right;">Cost</th>
+            <th style="text-align:right;">Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr style="{{ 'background:#FFF5F5;' if r.errors else '' }}">
+            <td class="text-muted" style="font-size:12px;">{{ loop.index }}</td>
+            <td>
+              {% if r.errors %}
+                <span class="status-badge status-void" title="{{ r.errors | join('; ') }}">
+                  Error
+                </span>
+                <div class="text-muted" style="font-size:11px; margin-top:2px;">
+                  {{ r.errors | join(' · ') }}
+                </div>
+              {% else %}
+                <span class="status-badge status-received">OK</span>
+              {% endif %}
+            </td>
+            <td style="font-family:monospace; font-size:12.5px;">{{ r.sku }}</td>
+            <td>{{ r.name }}</td>
+            <td class="text-muted">{{ r.material_str or '—' }}</td>
+            <td class="text-muted">{{ r.shape_str    or '—' }}</td>
+            <td class="text-muted" style="text-align:right;">
+              {{ r.size_mm ~ ' mm' if r.size_mm else '—' }}
+            </td>
+            <td class="text-muted">{{ r.color_str or '—' }}</td>
+            <td style="text-align:right; font-family:monospace;">
+              {{ r.cost_paise  | format_paise if r.cost_paise  else '—' }}
+            </td>
+            <td style="text-align:right; font-family:monospace;">
+              {{ r.price_paise | format_paise if r.price_paise else '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if valid_count > 0 %}
+  <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+    <form method="post" action="{{ url_for('excel.import_products') }}">
+      <input type="hidden" name="mode"   value="commit">
+      <input type="hidden" name="tmp_id" value="{{ tmp_id }}">
+      <button type="submit" class="btn btn-primary"
+              onclick="return confirm('Import {{ valid_count }} product{{ 's' if valid_count != 1 }}? This cannot be undone.')">
+        Confirm import ({{ valid_count }} product{{ 's' if valid_count != 1 }})
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

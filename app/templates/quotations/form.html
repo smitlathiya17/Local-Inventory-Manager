@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% set is_new = quot is none %}
+{% block page_title %}{{ 'New quotation' if is_new else 'Edit ' + quot.quote_number }}{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('quotations.quotation_list') }}" class="btn btn-secondary">← Back</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:860px;">
+<form method="post" id="quot-form">
+  <input type="hidden" id="line-count" name="line_count" value="0">
+
+  <div class="card mb-2">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="quote_number">Quote number</label>
+        <input id="quote_number" name="quote_number" type="text" class="input"
+               value="{{ form.quote_number or q_number }}"
+               style="font-family:monospace;" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="customer_id">Customer</label>
+        <select id="customer_id" name="customer_id" class="input">
+          <option value="">— Walk-in / Unknown —</option>
+          {% for c in customers %}
+            <option value="{{ c.id }}"
+              {{ 'selected' if (form.customer_id == c.id|string)
+                            or (not is_new and quot.customer_id == c.id) }}>
+              {{ c.name | e }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="date">Date</label>
+        <input id="date" name="date" type="date" class="input"
+               value="{{ form.date or (quot.date if not is_new else '') or today_iso() }}">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="expiry_date">Expiry date</label>
+        <input id="expiry_date" name="expiry_date" type="date" class="input"
+               value="{{ form.expiry_date or (quot.expiry_date if not is_new else '') or '' }}">
+      </div>
+      <div class="form-group" style="margin-bottom:0; grid-column:span 2;">
+        <label for="notes">Notes</label>
+        <input id="notes" name="notes" type="text" class="input"
+               value="{{ form.notes or (quot.notes if not is_new else '') | e }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-2">
+    <div class="flex-between mb-2">
+      <h3 style="font-size:14px; font-weight:600;">Lines</h3>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addLine()">+ Add line</button>
+    </div>
+    <div class="table-wrap">
+      <table id="lines-table">
+        <thead>
+          <tr>
+            <th style="width:40%">Product</th>
+            <th style="width:16%">Qty (kg)</th>
+            <th style="width:22%">Price per kg (₹)</th>
+            <th style="width:15%">Line total</th>
+            <th style="width:5%"></th>
+          </tr>
+        </thead>
+        <tbody id="lines-body"></tbody>
+      </table>
+    </div>
+    <div id="quot-total" style="text-align:right; font-size:14px; font-weight:600; margin-top:10px; color:var(--muted);">Total: ₹0</div>
+  </div>
+
+  <div style="display:flex; justify-content:flex-end;">
+    <button type="submit" class="btn btn-primary">{{ 'Create quotation' if is_new else 'Save changes' }}</button>
+  </div>
+</form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var PRODUCTS = {{ products | tojson }};
+var productMap = {};
+PRODUCTS.forEach(function(p) { productMap[p.id] = p; });
+var lineIdx = 0;
+
+var EXISTING = {{ lines | tojson }};
+EXISTING.forEach(function(l) {
+  addLine(l.product_id, l.grams / 1000, l.price_per_kg_paise / 100);
+});
+if (EXISTING.length === 0) addLine();
+
+function addLine(productId, qtyKg, pricePerKg) {
+  var i = lineIdx++;
+  var tbody = document.getElementById('lines-body');
+  var tr = document.createElement('tr');
+  tr.id = 'line-' + i;
+  tr.innerHTML =
+    '<td><select name="product_id_' + i + '" class="input input-sm" onchange="onProductChange(' + i + ',this.value)">' +
+    '<option value="">— Select product —</option>' +
+    PRODUCTS.map(function(p) {
+      return '<option value="' + p.id + '"' + (productId == p.id ? ' selected' : '') + '>' +
+             escHtml(p.sku + ' – ' + p.name) + '</option>';
+    }).join('') +
+    '</select></td>' +
+    '<td><input type="number" name="qty_kg_' + i + '" id="qty_' + i + '" step="0.001" min="0.001" class="input input-sm"' +
+    (qtyKg ? ' value="' + qtyKg.toFixed(3) + '"' : '') + ' oninput="recalc(' + i + ')"></td>' +
+    '<td><input type="number" name="price_per_kg_' + i + '" id="price_' + i + '" step="0.01" min="0" class="input input-sm"' +
+    (pricePerKg !== undefined ? ' value="' + pricePerKg.toFixed(2) + '"' : '') + ' oninput="recalcTotal()"></td>' +
+    '<td id="lt_' + i + '" style="font-size:13px; color:var(--muted);">—</td>' +
+    '<td><button type="button" class="btn btn-secondary btn-sm" onclick="removeLine(' + i + ')">✕</button></td>';
+  tbody.appendChild(tr);
+  updateLineCount();
+  recalc(i);
+}
+
+function removeLine(i) {
+  var row = document.getElementById('line-' + i);
+  if (row) row.remove();
+  updateLineCount();
+  recalcTotal();
+}
+
+function onProductChange(i, pid) {
+  var p = productMap[pid];
+  if (p) {
+    var priceEl = document.getElementById('price_' + i);
+    if (!priceEl.dataset.touched) priceEl.value = (p.price_per_kg_paise / 100).toFixed(2);
+    recalc(i);
+  }
+}
+
+function recalc(i) {
+  var qty   = parseFloat(document.querySelector('[name="qty_kg_' + i + '"]').value) || 0;
+  var price = parseFloat(document.querySelector('[name="price_per_kg_' + i + '"]').value) || 0;
+  var lt    = document.getElementById('lt_' + i);
+  if (lt) lt.textContent = qty && price ? '₹' + (qty * price).toFixed(2) : '—';
+  recalcTotal();
+}
+
+function recalcTotal() {
+  var total = 0;
+  document.querySelectorAll('#lines-body tr').forEach(function(tr) {
+    var i = tr.id.replace('line-', '');
+    var qty   = parseFloat(document.querySelector('[name="qty_kg_' + i + '"]').value) || 0;
+    var price = parseFloat(document.querySelector('[name="price_per_kg_' + i + '"]').value) || 0;
+    total += qty * price;
+  });
+  document.getElementById('quot-total').textContent = 'Total: ₹' + total.toFixed(2);
+}
+
+function updateLineCount() {
+  document.getElementById('line-count').value = lineIdx;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+{% endblock %}

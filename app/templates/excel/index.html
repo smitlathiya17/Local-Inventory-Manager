@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block page_title %}Excel &amp; Backup{% endblock %}
+
+{% block content %}
+<div style="max-width:900px; display:flex; flex-direction:column; gap:16px;">
+
+  {# ── Imports ───────────────────────────────────────────────────────────────── #}
+  <div class="card">
+    <h3 style="font-size:15px; font-weight:600; margin-bottom:16px;">Bulk import</h3>
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap:12px;">
+
+      {# Products #}
+      <div class="card card-sm" style="background:var(--bg-alt);">
+        <div style="font-weight:600; margin-bottom:4px;">Products</div>
+        <p class="text-muted text-sm" style="margin-bottom:12px;">
+          Bulk-add new products. Use the template for the required columns.
+        </p>
+        <a href="{{ url_for('excel.template_products') }}" class="btn btn-secondary btn-sm" style="margin-bottom:8px;">
+          Download template
+        </a>
+        <form method="post" action="{{ url_for('excel.import_products') }}" enctype="multipart/form-data"
+              style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <input type="hidden" name="mode" value="dry_run">
+          <input type="file" name="file" accept=".xlsx" class="input input-sm" style="flex:1; min-width:160px;" required>
+          <button type="submit" class="btn btn-primary btn-sm">Preview</button>
+        </form>
+      </div>
+
+      {# Purchases #}
+      <div class="card card-sm" style="background:var(--bg-alt);">
+        <div style="font-weight:600; margin-bottom:4px;">Purchases (Challans)</div>
+        <p class="text-muted text-sm" style="margin-bottom:12px;">
+          Bulk-import received stock. One challan per group of rows sharing the same Challan Number.
+        </p>
+        <a href="{{ url_for('excel.template_purchases') }}" class="btn btn-secondary btn-sm" style="margin-bottom:8px;">
+          Download template
+        </a>
+        <form method="post" action="{{ url_for('excel.import_purchases') }}" enctype="multipart/form-data"
+              style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <input type="hidden" name="mode" value="dry_run">
+          <input type="file" name="file" accept=".xlsx" class="input input-sm" style="flex:1; min-width:160px;" required>
+          <button type="submit" class="btn btn-primary btn-sm">Preview</button>
+        </form>
+      </div>
+
+      {# Sales #}
+      <div class="card card-sm" style="background:var(--bg-alt);">
+        <div style="font-weight:600; margin-bottom:4px;">Sales</div>
+        <p class="text-muted text-sm" style="margin-bottom:12px;">
+          Bulk-import sales. One invoice per group of rows sharing the same Invoice Number.
+        </p>
+        <a href="{{ url_for('excel.template_sales') }}" class="btn btn-secondary btn-sm" style="margin-bottom:8px;">
+          Download template
+        </a>
+        <form method="post" action="{{ url_for('excel.import_sales') }}" enctype="multipart/form-data"
+              style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <input type="hidden" name="mode" value="dry_run">
+          <input type="file" name="file" accept=".xlsx" class="input input-sm" style="flex:1; min-width:160px;" required>
+          <button type="submit" class="btn btn-primary btn-sm">Preview</button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  {# ── Exports ───────────────────────────────────────────────────────────────── #}
+  <div class="card">
+    <h3 style="font-size:15px; font-weight:600; margin-bottom:16px;">Export data</h3>
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:12px;">
+
+      <div class="card card-sm" style="background:var(--bg-alt);">
+        <div style="font-weight:600; margin-bottom:4px;">Products list</div>
+        <p class="text-muted text-sm" style="margin-bottom:12px;">
+          All products with current stock, cost, price, and details.
+        </p>
+        <a href="{{ url_for('excel.export_products') }}" class="btn btn-secondary btn-sm">Export products</a>
+      </div>
+
+      <div class="card card-sm" style="background:var(--bg-alt);">
+        <div style="font-weight:600; margin-bottom:4px;">Stock value</div>
+        <p class="text-muted text-sm" style="margin-bottom:12px;">
+          Active products with stock quantity and value at cost.
+        </p>
+        <a href="{{ url_for('excel.export_stock') }}" class="btn btn-secondary btn-sm">Export stock value</a>
+      </div>
+
+      <div class="card card-sm" style="background:var(--bg-alt);">
+        <div style="font-weight:600; margin-bottom:4px;">Sales report</div>
+        <p class="text-muted text-sm" style="margin-bottom:8px;">
+          All sales with totals and payment status.
+        </p>
+        <form method="get" action="{{ url_for('excel.export_sales') }}"
+              style="display:flex; gap:6px; flex-wrap:wrap; align-items:flex-end;">
+          <div>
+            <label style="font-size:11px;">From</label>
+            <input type="date" name="from" class="input input-sm" style="width:130px;">
+          </div>
+          <div>
+            <label style="font-size:11px;">To</label>
+            <input type="date" name="to" class="input input-sm" style="width:130px;" value="{{ today }}">
+          </div>
+          <button type="submit" class="btn btn-secondary btn-sm">Export sales</button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

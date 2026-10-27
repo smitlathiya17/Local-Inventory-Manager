@@ -16,18 +16,21 @@
     <ul class="sidebar-nav">
       <li><a href="{{ url_for('main.dashboard') }}"    class="{{ 'active' if request.endpoint == 'main.dashboard' }}">Dashboard</a></li>
       <li><a href="{{ url_for('products.product_list') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('products.') }}">Products</a></li>
-      <li><a href="#"                                                      class="{{ 'active' if request.endpoint and request.endpoint.startswith('stock.') }}">Total stock</a></li>
-      <li><a href="{{ url_for('po.po_list') }}"                           class="{{ 'active' if request.endpoint and request.endpoint.startswith('po.') }}">Purchase orders</a></li>
-      <li><a href="#"                                                      class="{{ 'active' if request.endpoint and request.endpoint.startswith('sales.') }}">Sales</a></li>
-      <li><a href="#"                                                      class="{{ 'active' if request.endpoint and request.endpoint.startswith('customers.') }}">Customers</a></li>
+      <li><a href="{{ url_for('stock.total_stock') }}"                    class="{{ 'active' if request.endpoint and request.endpoint.startswith('stock.') }}">Total stock</a></li>
+      <li><a href="{{ url_for('po.po_list') }}"                           class="{{ 'active' if request.endpoint and request.endpoint.startswith('po.') }}">Record Purchase</a></li>
+      <li><a href="{{ url_for('sales.sale_list') }}"                       class="{{ 'active' if request.endpoint and request.endpoint.startswith('sales.') }}">Sales</a></li>
+      <li><a href="{{ url_for('customers.customer_list') }}"              class="{{ 'active' if request.endpoint and request.endpoint.startswith('customers.') }}">Customers</a></li>
       <li><a href="{{ url_for('suppliers.supplier_list') }}"              class="{{ 'active' if request.endpoint and request.endpoint.startswith('suppliers.') }}">Suppliers</a></li>
-      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('labels.') }}">Labels</a></li>
-      <li><a href="#"                                  class="{{ 'active' if request.endpoint and request.endpoint.startswith('excel.') }}">Excel &amp; backup</a></li>
+      <li><a href="{{ url_for('excel.excel_index') }}"  class="{{ 'active' if request.endpoint and request.endpoint.startswith('excel.') }}">Excel &amp; backup</a></li>
       <li><a href="{{ url_for('settings.settings') }}" class="{{ 'active' if request.endpoint == 'settings.settings' }}">Settings</a></li>
     </ul>
     <div class="sidebar-footer">
       <div>Data folder: <strong>{{ data_folder_name }}</strong></div>
       {% if last_saved %}<div>Saved {{ last_saved }}</div>{% endif %}
+      <form method="post" action="{{ url_for('main.shutdown') }}"
+            onsubmit="return confirm('Close Inventory Manager? You can safely remove the pendrive after.')">
+        <button type="submit" class="sidebar-close">Close &amp; safe remove</button>
+      </form>
     </div>
   </nav>
 
@@ -56,5 +59,30 @@
   </main>
 
   {% block scripts %}{% endblock %}
+<script>
+/* Global barcode scanner listener.
+   USB scanners type characters very fast then send Enter.
+   When no form input is focused, a scan redirects to the product page. */
+(function () {
+  var buf = '', t0 = 0;
+  document.addEventListener('keydown', function (e) {
+    var tag = document.activeElement ? document.activeElement.tagName : '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+      buf = ''; return;
+    }
+    var now = Date.now();
+    if (now - t0 > 200) buf = '';
+    t0 = now;
+    if (e.key === 'Enter') {
+      if (buf.length >= 4) {
+        window.location = '/products?q=' + encodeURIComponent(buf) + '&exact=1';
+      }
+      buf = '';
+      return;
+    }
+    if (e.key.length === 1) buf += e.key;
+  });
+})();
+</script>
 </body>
 </html>

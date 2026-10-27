@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block page_title %}Sales import preview{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('excel.excel_index') }}" class="btn btn-secondary">← Back</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:960px;">
+
+  <div class="card card-sm mb-2" style="display:flex; gap:24px; flex-wrap:wrap; align-items:center;">
+    <div><span class="text-muted text-sm">Total rows</span><br><strong>{{ rows | length }}</strong></div>
+    <div><span class="text-muted text-sm">Invoices</span><br><strong class="{{ 'text-green' if groups | length > 0 }}">{{ groups | length }}</strong></div>
+    <div><span class="text-muted text-sm">Valid lines</span><br><strong class="{{ 'text-green' if valid_count > 0 }}">{{ valid_count }}</strong></div>
+    {% if invalid_count > 0 %}
+    <div><span class="text-muted text-sm">Rows with errors</span><br><strong class="text-warn">{{ invalid_count }}</strong></div>
+    {% endif %}
+    {% if groups | length > 0 %}
+    <form method="post" action="{{ url_for('excel.import_sales') }}" style="margin-left:auto;">
+      <input type="hidden" name="mode"   value="commit">
+      <input type="hidden" name="tmp_id" value="{{ tmp_id }}">
+      <button type="submit" class="btn btn-primary"
+              onclick="return confirm('Import {{ groups | length }} sale{{ 's' if groups | length != 1 }}?')">
+        Confirm import ({{ groups | length }} sale{{ 's' if groups | length != 1 }})
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Status</th>
+            <th>Invoice</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>SKU</th>
+            <th style="text-align:right;">kg</th>
+            <th style="text-align:right;">Price/kg</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr style="{{ 'background:#FFF5F5;' if r.errors else '' }}">
+            <td class="text-muted" style="font-size:12px;">{{ loop.index }}</td>
+            <td>
+              {% if r.errors %}
+                <span class="status-badge status-void">Error</span>
+                <div class="text-muted" style="font-size:11px; margin-top:2px;">{{ r.errors | join(' · ') }}</div>
+              {% else %}
+                <span class="status-badge status-received">OK</span>
+              {% endif %}
+            </td>
+            <td style="font-family:monospace; font-size:12.5px;">{{ r.invoice_no or '—' }}</td>
+            <td>{{ r.date or '—' }}</td>
+            <td class="text-muted">{{ r.customer_str or '— Walk-in —' }}</td>
+            <td style="font-family:monospace; font-size:12.5px;">{{ r.sku or '—' }}</td>
+            <td style="text-align:right; font-family:monospace;">
+              {{ (r.grams / 1000) | round(3) if r.grams else '—' }}
+            </td>
+            <td style="text-align:right; font-family:monospace;">
+              {{ r.price_paise | format_paise if r.price_paise else '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if groups | length > 0 %}
+  <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+    <form method="post" action="{{ url_for('excel.import_sales') }}">
+      <input type="hidden" name="mode"   value="commit">
+      <input type="hidden" name="tmp_id" value="{{ tmp_id }}">
+      <button type="submit" class="btn btn-primary"
+              onclick="return confirm('Import {{ groups | length }} sale{{ 's' if groups | length != 1 }}?')">
+        Confirm import ({{ groups | length }} sale{{ 's' if groups | length != 1 }})
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

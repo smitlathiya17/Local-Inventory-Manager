@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% set is_new = sale is none %}
+{% block page_title %}{{ 'New invoice' if is_new else 'Edit ' + sale.invoice_number }}{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('sales.sale_list') }}" class="btn btn-secondary">← Back</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:860px;">
+<form method="post" id="sale-form">
+  <input type="hidden" id="line-count" name="line_count" value="0">
+
+  {# ── header ── #}
+  <div class="card mb-2">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="invoice_number">Invoice number</label>
+        <input id="invoice_number" name="invoice_number" type="text" class="input"
+               value="{{ form.invoice_number or inv_number }}"
+               style="font-family:monospace;" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="customer_id">Customer</label>
+        <select id="customer_id" name="customer_id" class="input">
+          <option value="">— Walk-in —</option>
+          {% for c in customers %}
+            <option value="{{ c.id }}"
+              {{ 'selected' if (form.customer_id == c.id|string)
+                            or (not is_new and sale.customer_id == c.id)
+                            or (request.args.get('customer_id') == c.id|string) }}>
+              {{ c.name | e }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="date">Date</label>
+        <input id="date" name="date" type="date" class="input"
+               value="{{ form.date or (sale.date if not is_new else '') or today_iso() }}">
+      </div>
+      <div class="form-group" style="margin-bottom:0; grid-column:span 3;">
+        <label for="notes">Notes</label>
+        <input id="notes" name="notes" type="text" class="input"
+               value="{{ form.notes or (sale.notes if not is_new else '') | e }}">
+      </div>
+    </div>
+  </div>
+
+  {# ── lines ── #}
+  <div class="card mb-2">
+    <div class="flex-between mb-2">
+      <h3 style="font-size:14px; font-weight:600;">Sale lines</h3>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addLine()">+ Add line</button>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+      <input type="text" id="scan-input" placeholder="Scan barcode or type SKU + Enter"
+             class="input input-sm" style="max-width:300px;" autocomplete="off" autocorrect="off"
+             spellcheck="false">
+      <span id="scan-msg" class="text-sm"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="lines-table">
+        <thead>
+          <tr>
+            <th style="width:40%">Product</th>
+            <th style="width:16%">Qty (kg)</th>
+            <th style="width:22%">Price per kg (₹)</th>
+            <th style="width:15%">Line total</th>
+            <th style="width:5%"></th>
+          </tr>
+        </thead>
+        <tbody id="lines-body"></tbody>
+      </table>
+    </div>
+    <div id="sale-total" style="text-align:right; font-size:14px; font-weight:600; margin-top:10px; color:var(--muted);">Total: ₹0</div>
+  </div>
+
+  {% if is_new %}
+  {# ── optional payment now ── #}
+  <div class="card mb-2">
+    <h3 style="font-size:14px; font-weight:600; margin-bottom:12px;">Payment received now <span class="text-muted text-sm" style="font-weight:400;">(optional)</span></h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="pay_amount">Amount (₹)</label>
+        <input id="pay_amount" name="pay_amount" type="text" class="input" placeholder="Leave blank to skip">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="pay_method">Method</label>
+        <select id="pay_method" name="pay_method" class="input">
+          <option value="cash">Cash</option>
+          <option value="upi">UPI</option>
+          <option value="bank">Bank transfer</option>
+          <option value="cheque">Cheque</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="pay_note">Note</label>
+        <input id="pay_note" name="pay_note" type="text" class="input" placeholder="Optional">
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div style="display:flex; justify-content:flex-end;">
+    <button type="submit" class="btn btn-primary">{{ 'Create invoice' if is_new else 'Save changes' }}</button>
+  </div>
+</form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var PRODUCTS = {{ products | tojson }};
+var productMap = {};
+PRODUCTS.forEach(function(p) { productMap[p.id] = p; });
+var lineIdx = 0;
+
+var EXISTING = {{ lines | tojson }};
+EXISTING.forEach(function(l) {
+  addLine(l.product_id, l.grams / 1000, l.price_per_kg_paise / 100);
+});
+if (EXISTING.length === 0) addLine();
+
+function addLine(productId, qtyKg, pricePerKg) {
+  var i = lineIdx++;
+  var tbody = document.getElementById('lines-body');
+  var tr = document.createElement('tr');
+  tr.id = 'line-' + i;
+  tr.innerHTML =
+    '<td><select name="product_id_' + i + '" class="input input-sm" onchange="onProductChange(' + i + ',this.value)">' +
+    '<option value="">— Select product —</option>' +
+    PRODUCTS.map(function(p) {
+      return '<option value="' + p.id + '"' + (productId == p.id ? ' selected' : '') + '>' +
+             escHtml(p.sku + ' – ' + p.name) + '</option>';
+    }).join('') +
+    '</select></td>' +
+    '<td><input type="number" name="qty_kg_' + i + '" id="qty_' + i + '" step="0.001" min="0.001" class="input input-sm"' +
+    (qtyKg ? ' value="' + qtyKg.toFixed(3) + '"' : '') + ' oninput="recalc(' + i + ')"></td>' +
+    '<td><input type="number" name="price_per_kg_' + i + '" id="price_' + i + '" step="0.01" min="0" class="input input-sm"' +
+    (pricePerKg !== undefined ? ' value="' + pricePerKg.toFixed(2) + '"' : '') + ' oninput="recalcTotal()"></td>' +
+    '<td id="lt_' + i + '" style="font-size:13px; color:var(--muted);">—</td>' +
+    '<td><button type="button" class="btn btn-secondary btn-sm" onclick="removeLine(' + i + ')">✕</button></td>';
+  tbody.appendChild(tr);
+  updateLineCount();
+  recalc(i);
+}
+
+function removeLine(i) {
+  var row = document.getElementById('line-' + i);
+  if (row) row.remove();
+  updateLineCount();
+  recalcTotal();
+}
+
+function onProductChange(i, pid) {
+  var p = productMap[pid];
+  if (p) {
+    var priceEl = document.getElementById('price_' + i);
+    if (!priceEl.dataset.touched) priceEl.value = (p.price_per_kg_paise / 100).toFixed(2);
+    recalc(i);
+  }
+}
+
+function recalc(i) {
+  var qty   = parseFloat(document.querySelector('[name="qty_kg_' + i + '"]').value) || 0;
+  var price = parseFloat(document.querySelector('[name="price_per_kg_' + i + '"]').value) || 0;
+  var lt    = document.getElementById('lt_' + i);
+  if (lt) lt.textContent = qty && price ? '₹' + (qty * price).toFixed(2) : '—';
+  recalcTotal();
+}
+
+function recalcTotal() {
+  var total = 0;
+  document.querySelectorAll('#lines-body tr').forEach(function(tr) {
+    var i = tr.id.replace('line-', '');
+    var qty   = parseFloat(document.querySelector('[name="qty_kg_' + i + '"]').value) || 0;
+    var price = parseFloat(document.querySelector('[name="price_per_kg_' + i + '"]').value) || 0;
+    total += qty * price;
+  });
+  document.getElementById('sale-total').textContent = 'Total: ₹' + total.toFixed(2);
+}
+
+function updateLineCount() {
+  document.getElementById('line-count').value = lineIdx;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.querySelectorAll('[name^="price_per_kg_"]').forEach(function(el) {
+  el.addEventListener('input', function() { this.dataset.touched = '1'; });
+});
+
+(function () {
+  var scanInput = document.getElementById('scan-input');
+  var scanMsg   = document.getElementById('scan-msg');
+  function setMsg(text, color) {
+    scanMsg.textContent = text;
+    scanMsg.style.color = color || 'var(--muted)';
+    if (text) setTimeout(function () { scanMsg.textContent = ''; }, 3000);
+  }
+  scanInput.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var q = this.value.trim();
+    if (!q) return;
+    var self = this;
+    fetch('/api/product?q=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (p) {
+        if (p.error) { setMsg(p.error, 'var(--red)'); }
+        else {
+          addLine(p.id, null, p.price_per_kg_paise / 100);
+          var rows = document.querySelectorAll('#lines-body tr');
+          if (rows.length) {
+            var qty = rows[rows.length - 1].querySelector('input[type="number"]');
+            if (qty) { qty.focus(); qty.select(); }
+          }
+          setMsg(p.sku + ' – ' + p.name, 'var(--green)');
+        }
+        self.value = '';
+      })
+      .catch(function () { setMsg('Lookup failed', 'var(--red)'); self.value = ''; });
+  });
+})();
+</script>
+{% endblock %}

@@ -92,6 +92,7 @@
           {{ _th('Size',     'size',     sort, desc) }}
           {{ _th('Color',    'color',    sort, desc) }}
           {{ _th('In stock', 'stock',    sort, desc) }}
+          <th>Committed</th>
           {{ _th('Price / kg', 'price', sort, desc) }}
           <th>Actions</th>
         </tr>
@@ -114,6 +115,11 @@
             {% else %}
               {{ p.stock_grams | format_grams }}
             {% endif %}
+          </td>
+          <td>
+            {% if p.committed_grams > 0 %}
+              <span class="text-warn">{{ p.committed_grams | format_grams }}</span>
+            {% else %}—{% endif %}
           </td>
           <td>{{ p.price_per_kg_paise | format_paise }}</td>
           <td>

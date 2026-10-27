@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block page_title %}{{ quot.quote_number | e }}{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('quotations.quotation_list') }}" class="btn btn-secondary">← Back</a>
+  <a href="{{ url_for('quotations.quotation_print', quot_id=quot.id) }}" class="btn btn-secondary" target="_blank">Print</a>
+  {% if quot.status == 'Draft' %}
+    <a href="{{ url_for('quotations.quotation_edit', quot_id=quot.id) }}" class="btn btn-secondary">Edit</a>
+    <form method="post" action="{{ url_for('quotations.quotation_send', quot_id=quot.id) }}" style="display:inline">
+      <button class="btn btn-primary">Mark as Sent</button>
+    </form>
+  {% endif %}
+  {% if quot.status in ('Draft', 'Sent') %}
+    <form method="post" action="{{ url_for('quotations.quotation_accept', quot_id=quot.id) }}" style="display:inline">
+      <button class="btn btn-primary">Accept → Order</button>
+    </form>
+  {% endif %}
+  {% if quot.status == 'Accepted' %}
+    <a href="{{ url_for('quotations.quotation_convert', quot_id=quot.id) }}" class="btn btn-primary">Convert to Sale</a>
+  {% endif %}
+  {% if quot.status not in ('Converted', 'Rejected', 'Expired') %}
+    <form method="post" action="{{ url_for('quotations.quotation_reject', quot_id=quot.id) }}" style="display:inline"
+          onsubmit="return confirm('Mark as Rejected?')">
+      <button class="btn btn-secondary">Reject</button>
+    </form>
+    <form method="post" action="{{ url_for('quotations.quotation_expire', quot_id=quot.id) }}" style="display:inline"
+          onsubmit="return confirm('Mark as Expired?')">
+      <button class="btn btn-secondary">Expire</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+    <div class="card">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 16px;">
+        <div><div class="text-muted text-sm">Status</div>
+          <span class="status-badge status-{{ quot.status | lower }}">{{ quot.status }}</span></div>
+        <div><div class="text-muted text-sm">Customer</div>
+          {% if quot.customer_id %}
+            <a href="{{ url_for('customers.customer_detail', customer_id=quot.customer_id) }}">{{ quot.customer_name | e }}</a>
+          {% else %}
+            <strong>— Walk-in —</strong>
+          {% endif %}
+        </div>
+        <div><div class="text-muted text-sm">Date</div>{{ quot.date | format_date }}</div>
+        <div><div class="text-muted text-sm">Expiry</div>{{ quot.expiry_date | format_date if quot.expiry_date else '—' }}</div>
+        {% if quot.notes %}<div style="grid-column:span 2;"><div class="text-muted text-sm">Notes</div>{{ quot.notes | e }}</div>{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 16px;">
+        <div><div class="text-muted text-sm">Quote total</div>
+          <div style="font-size:22px; font-weight:700;">{{ total_paise | format_paise }}</div></div>
+        <div><div class="text-muted text-sm">Advance received</div>
+          <div style="font-size:22px; font-weight:700; color:var(--green);">{{ advance_total | format_paise }}</div></div>
+        {% if quot.status == 'Converted' and quot.converted_sale_id %}
+          <div style="grid-column:span 2;">
+            <div class="text-muted text-sm">Converted to</div>
+            <a href="{{ url_for('sales.sale_detail', sale_id=quot.converted_sale_id) }}" class="text-green">View invoice →</a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── advance payment form (only for Accepted orders with a customer) ── #}
+  {% if quot.status == 'Accepted' and quot.customer_id %}
+  <div class="card card-sm mb-2">
+    <form method="post" action="{{ url_for('quotations.quotation_advance', quot_id=quot.id) }}"
+          style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+      <div><label>Advance amount (₹) *</label>
+        <input name="amount" type="text" class="input input-sm" style="width:130px;" placeholder="0.00" required></div>
+      <div><label>Date</label>
+        <input name="date" type="date" class="input input-sm" value="{{ today }}"></div>
+      <div><label>Method</label>
+        <select name="method" class="input input-sm">
+          <option value="cash">Cash</option>
+          <option value="upi">UPI</option>
+          <option value="bank">Bank transfer</option>
+          <option value="cheque">Cheque</option>
+        </select></div>
+      <div><label>Note</label>
+        <input name="note" type="text" class="input input-sm" style="width:160px;" placeholder="Optional"></div>
+      <button type="submit" class="btn btn-primary btn-sm">Record advance</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {# ── lines ── #}
+  <div class="card" style="padding:0; overflow:hidden; margin-bottom:16px;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>SKU</th><th>Product</th><th>Qty</th><th>Price / kg</th><th>Line total</th></tr>
+        </thead>
+        <tbody>
+          {% for l in lines %}
+          <tr>
+            <td style="font-family:monospace; font-size:12.5px;">{{ l.sku | e }}</td>
+            <td>{{ l.product_name | e }}</td>
+            <td>{{ l.grams | format_grams }} kg</td>
+            <td>{{ l.price_per_kg_paise | format_paise }}</td>
+            <td>{{ calc_line_total(l.price_per_kg_paise, l.grams) | format_paise }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4" style="text-align:right; font-weight:600; font-size:13px; color:var(--muted);">Total</td>
+            <td style="font-weight:700;">{{ total_paise | format_paise }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  {# ── advance payments ── #}
+  {% if advances %}
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:12px 16px; border-bottom:1px solid var(--border); font-size:13px; font-weight:600;">Advance payments</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Method</th><th>Note</th><th>Amount</th></tr></thead>
+        <tbody>
+          {% for p in advances %}
+          <tr {% if p.voided %}style="opacity:0.45; text-decoration:line-through;"{% endif %}>
+            <td>{{ p.date | format_date }}</td>
+            <td>{{ p.method | title }}</td>
+            <td>{{ p.note or '—' }}</td>
+            <td>{{ p.paise | format_paise }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

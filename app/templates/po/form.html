@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% set is_new = po is none %}
-{% block page_title %}{{ 'New purchase order' if is_new else 'Edit ' + po.po_number }}{% endblock %}
+{% block page_title %}{{ 'New challan' if is_new else 'Edit ' + po.po_number }}{% endblock %}
 {% block page_actions %}
   <a href="{{ url_for('po.po_list') }}" class="btn btn-secondary">← Back</a>
 {% endblock %}
@@ -14,8 +14,10 @@
   <div class="card mb-2">
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
       <div class="form-group" style="margin-bottom:0;">
-        <label>PO number</label>
-        <div class="input" style="background:var(--bg); cursor:default; font-family:monospace;">{{ po_number }}</div>
+        <label for="challan_number">Challan number</label>
+        <input id="challan_number" name="challan_number" type="text" class="input"
+               value="{{ form.challan_number or po_number }}"
+               placeholder="e.g. CH-0001" style="font-family:monospace;" required>
       </div>
       <div class="form-group" style="margin-bottom:0;">
         <label for="supplier_id">Supplier</label>
@@ -53,6 +55,12 @@
       <h3 style="font-size:14px; font-weight:600;">Order lines</h3>
       <button type="button" class="btn btn-secondary btn-sm" onclick="addLine()">+ Add line</button>
     </div>
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+      <input type="text" id="scan-input" placeholder="Scan barcode or type SKU + Enter"
+             class="input input-sm" style="max-width:300px;" autocomplete="off" autocorrect="off"
+             spellcheck="false">
+      <span id="scan-msg" class="text-sm"></span>
+    </div>
     <div class="table-wrap">
       <table id="lines-table">
         <thead>
@@ -71,7 +79,7 @@
   </div>
 
   <div style="display:flex; justify-content:flex-end;">
-    <button type="submit" class="btn btn-primary">{{ 'Create order' if is_new else 'Save changes' }}</button>
+    <button type="submit" class="btn btn-primary">{{ 'Create challan' if is_new else 'Save changes' }}</button>
   </div>
 </form>
 </div>
@@ -162,5 +170,38 @@ function escHtml(s) {
 document.querySelectorAll('[name^="cost_per_kg_"]').forEach(function(el) {
   el.addEventListener('input', function() { this.dataset.touched = '1'; });
 });
+
+(function () {
+  var scanInput = document.getElementById('scan-input');
+  var scanMsg   = document.getElementById('scan-msg');
+  function setMsg(text, color) {
+    scanMsg.textContent = text;
+    scanMsg.style.color = color || 'var(--muted)';
+    if (text) setTimeout(function () { scanMsg.textContent = ''; }, 3000);
+  }
+  scanInput.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var q = this.value.trim();
+    if (!q) return;
+    var self = this;
+    fetch('/api/product?q=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (p) {
+        if (p.error) { setMsg(p.error, 'var(--red)'); }
+        else {
+          addLine(p.id, null, p.cost_per_kg_paise / 100);
+          var rows = document.querySelectorAll('#lines-body tr');
+          if (rows.length) {
+            var qty = rows[rows.length - 1].querySelector('input[type="number"]');
+            if (qty) { qty.focus(); qty.select(); }
+          }
+          setMsg(p.sku + ' – ' + p.name, 'var(--green)');
+        }
+        self.value = '';
+      })
+      .catch(function () { setMsg('Lookup failed', 'var(--red)'); self.value = ''; });
+  });
+})();
 </script>
 {% endblock %}

@@ -117,7 +117,12 @@ def po_new():
     po_number, nxt = _next_po_number(db)
 
     if request.method == 'POST':
+        challan_number = request.form.get('challan_number', '').strip()
         errors, lines = _parse_po_form(request.form, products)
+        if not challan_number:
+            errors.append('Challan number is required.')
+        elif db.execute("SELECT id FROM purchase_orders WHERE po_number=?", (challan_number,)).fetchone():
+            errors.append(f'Challan number "{challan_number}" already exists.')
         if not lines:
             errors.append('Add at least one product line.')
         if errors:
@@ -131,7 +136,7 @@ def po_new():
                 """INSERT INTO purchase_orders
                    (po_number, supplier_id, date, expected_date, notes)
                    VALUES (?,?,?,?,?)""",
-                (po_number,
+                (challan_number,
                  request.form.get('supplier_id') or None,
                  request.form.get('date', today_iso()),
                  request.form.get('expected_date') or None,
@@ -145,7 +150,7 @@ def po_new():
                 )
             _bump_po_number(db, nxt)
         mark_saved()
-        flash(f'Purchase order {po_number} created.', 'banner-success')
+        flash(f'Challan {challan_number} created.', 'banner-success')
         return redirect(url_for('po.po_detail', po_id=po_id))
 
     return render_template('po/form.html',
@@ -169,7 +174,14 @@ def po_edit(po_id: int):
     existing_lines = _po_lines(db, po_id)
 
     if request.method == 'POST':
+        challan_number = request.form.get('challan_number', '').strip()
         errors, lines = _parse_po_form(request.form, products)
+        if not challan_number:
+            errors.append('Challan number is required.')
+        elif db.execute(
+            "SELECT id FROM purchase_orders WHERE po_number=? AND id!=?", (challan_number, po_id)
+        ).fetchone():
+            errors.append(f'Challan number "{challan_number}" already exists.')
         if not lines:
             errors.append('Add at least one product line.')
         if errors:
@@ -180,9 +192,10 @@ def po_edit(po_id: int):
             )
         with db:
             db.execute(
-                """UPDATE purchase_orders SET supplier_id=?, date=?, expected_date=?, notes=?
+                """UPDATE purchase_orders SET po_number=?, supplier_id=?, date=?, expected_date=?, notes=?
                    WHERE id=?""",
-                (request.form.get('supplier_id') or None,
+                (challan_number,
+                 request.form.get('supplier_id') or None,
                  request.form.get('date', today_iso()),
                  request.form.get('expected_date') or None,
                  request.form.get('notes', '').strip(),
@@ -195,7 +208,7 @@ def po_edit(po_id: int):
                     (po_id, line['product_id'], line['grams'], line['cost_paise']),
                 )
         mark_saved()
-        flash(f'Order {po["po_number"]} updated.', 'banner-success')
+        flash(f'Challan {challan_number} updated.', 'banner-success')
         return redirect(url_for('po.po_detail', po_id=po_id))
 
     return render_template('po/form.html',
@@ -273,7 +286,7 @@ def po_mark_ordered(po_id: int):
     db.execute("UPDATE purchase_orders SET status='Ordered' WHERE id=?", (po_id,))
     db.commit()
     mark_saved()
-    flash(f'{po["po_number"]} marked as Ordered.', 'banner-success')
+    flash(f'Challan {po["po_number"]} marked as Ordered.', 'banner-success')
     return redirect(url_for('po.po_detail', po_id=po_id))
 
 
@@ -289,7 +302,7 @@ def po_cancel(po_id: int):
     db.execute("UPDATE purchase_orders SET status='Cancelled' WHERE id=?", (po_id,))
     db.commit()
     mark_saved()
-    flash(f'{po["po_number"]} cancelled.', 'banner-success')
+    flash(f'Challan {po["po_number"]} cancelled.', 'banner-success')
     return redirect(url_for('po.po_list'))
 
 
@@ -383,7 +396,7 @@ def po_receive(po_id: int):
             _update_po_status(db, po_id, updated_lines)
 
         mark_saved()
-        flash(f'Stock received for {po["po_number"]}.', 'banner-success')
+        flash(f'Stock received for challan {po["po_number"]}.', 'banner-success')
         return redirect(url_for('po.po_detail', po_id=po_id))
 
     return render_template('po/receive.html', po=po, lines=lines, today=today_iso())

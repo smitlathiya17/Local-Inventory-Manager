@@ -1,0 +1,78 @@
+name: CI / Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # ── Run tests on multiple platforms ───────────────────────────────────────
+  test:
+    name: Tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.9', '3.11']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest tests/ -q
+
+  # ── Build Windows exe (only on tags or manual trigger) ────────────────────
+  build-windows:
+    name: Build Windows exe
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: pyinstaller beads_manager.spec
+
+      - name: Add Start.bat to dist
+        shell: pwsh
+        run: Copy-Item Start.bat dist\BeadsManager\Start.bat
+
+      - name: Zip distribution
+        shell: pwsh
+        run: Compress-Archive -Path dist\BeadsManager -DestinationPath dist\BeadsManager-windows.zip
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BeadsManager-windows
+          path: dist/BeadsManager-windows.zip
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/BeadsManager-windows.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true

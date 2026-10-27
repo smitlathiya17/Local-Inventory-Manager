@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block page_title %}Total Stock{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('stock.count_list') }}" class="btn btn-secondary">Stock counts</a>
+{% endblock %}
+
+{% block content %}
+
+{# ── group-by bar ── #}
+<form class="card card-sm mb-2" method="get" style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+  <span style="font-size:12.5px; font-weight:600; color:var(--muted);">Group by</span>
+  {% for key, label in [('material','Material'),('shape','Shape'),('size','Size'),('color','Color')] %}
+  <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:400; color:var(--text);">
+    <input type="checkbox" name="group_by" value="{{ key }}"
+           {{ 'checked' if key in group_by }}>
+    {{ label }}
+  </label>
+  {% endfor %}
+  <button type="submit" class="btn btn-secondary btn-sm">Apply</button>
+  {% if group_by %}
+    <a href="{{ url_for('stock.total_stock') }}" class="btn btn-secondary btn-sm">Flat list</a>
+  {% endif %}
+  <span style="margin-left:auto; font-size:13px; color:var(--muted);">
+    Total: <strong style="color:var(--text)">{{ total_grams | format_grams }} kg</strong>
+    · <strong style="color:var(--text)">{{ total_value | format_paise }}</strong>
+  </span>
+</form>
+
+<div class="card" style="padding:0; overflow:hidden;">
+  {% if rows %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ group_by | join(' · ') | title if group_by else 'Product' }}</th>
+          {% if not group_by %}<th>SKU</th>{% endif %}
+          <th>Products</th>
+          <th style="text-align:right;">In stock</th>
+          <th style="text-align:right;">Value at cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.grp }}</td>
+          {% if not group_by %}
+            {# grp already includes SKU prefix — skip separate column #}
+          {% else %}
+            <td style="color:var(--muted);">{{ r.products }}</td>
+          {% endif %}
+          {% if not group_by %}
+            <td style="color:var(--muted);">1</td>
+          {% endif %}
+          <td style="text-align:right; font-family:monospace;">{{ r.total_grams | format_grams }} kg</td>
+          <td style="text-align:right; font-family:monospace;">{{ r.value_paise | int | format_paise }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="{{ 3 if group_by else 3 }}" style="text-align:right; font-weight:600; color:var(--muted);">Total</td>
+          <td style="text-align:right; font-family:monospace; font-weight:700;">{{ total_grams | format_grams }} kg</td>
+          <td style="text-align:right; font-family:monospace; font-weight:700;">{{ total_value | format_paise }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+    <p style="padding:32px; text-align:center; color:var(--muted);">No products found.</p>
+  {% endif %}
+</div>
+{% endblock %}

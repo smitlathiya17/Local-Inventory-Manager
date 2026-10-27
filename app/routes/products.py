@@ -96,12 +96,20 @@ def product_list():
         SELECT p.id, p.sku, p.name, p.size_mm, p.barcode, p.active,
                p.cost_per_kg_paise, p.price_per_kg_paise, p.reorder_grams,
                m.name AS material_name, s.name AS shape_name, c.name AS color_name,
-               COALESCE(SUM(sm.grams), 0) AS stock_grams
+               COALESCE(SUM(sm.grams), 0) AS stock_grams,
+               COALESCE(cmt.committed_grams, 0) AS committed_grams
         FROM products p
         LEFT JOIN materials m ON p.material_id = m.id
         LEFT JOIN shapes    s ON p.shape_id    = s.id
         LEFT JOIN colors    c ON p.color_id    = c.id
         LEFT JOIN stock_movements sm ON sm.product_id = p.id
+        LEFT JOIN (
+            SELECT ql.product_id, SUM(ql.grams) AS committed_grams
+            FROM quotation_lines ql
+            JOIN quotations q ON ql.quotation_id = q.id
+            WHERE q.status = 'Accepted'
+            GROUP BY ql.product_id
+        ) cmt ON cmt.product_id = p.id
         {where_sql}
         GROUP BY p.id
         ORDER BY {order_col} {order_dir}
@@ -158,7 +166,6 @@ def product_new():
         try:
             cost_paise  = rupee_str_to_paise(request.form.get('cost_per_kg', '0') or '0')
             price_paise = rupee_str_to_paise(request.form.get('price_per_kg', '0') or '0')
-            opening_g   = kg_str_to_grams(request.form.get('opening_stock', '0') or '0')
             reorder_g   = kg_str_to_grams(request.form.get('reorder_kg', '0') or '0')
         except ValueError as e:
             errors.append(str(e))
@@ -196,14 +203,6 @@ def product_new():
                 (sku, name, material_id, shape_id, size_mm, color_id,
                  barcode, cost_paise, price_paise, reorder_g, notes),
             )
-            product_id = cur.lastrowid
-            if opening_g > 0:
-                db.execute(
-                    """INSERT INTO stock_movements
-                       (product_id, type, grams, date, note)
-                       VALUES (?,?,?,?,?)""",
-                    (product_id, 'opening', opening_g, today_iso(), 'Opening stock'),
-                )
         mark_saved()
         flash(f'Product "{name}" added.', 'banner-success')
         return redirect(url_for('products.product_list'))
@@ -374,6 +373,25 @@ def product_adjust(product_id: int):
 # ── managed lists API ─────────────────────────────────────────────────────────
 
 _LIST_TABLE = {'materials': 'materials', 'shapes': 'shapes', 'colors': 'colors'}
+
+
+@products_bp.route('/api/product')
+def api_product():
+    db = get_db()
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify({'error': 'No query'}), 400
+    row = db.execute("""
+        SELECT p.id, p.sku, p.name, p.cost_per_kg_paise, p.price_per_kg_paise,
+               COALESCE(SUM(sm.grams), 0) AS stock_grams
+        FROM products p
+        LEFT JOIN stock_movements sm ON sm.product_id = p.id
+        WHERE p.active = 1 AND (p.barcode = ? OR p.sku = ?)
+        GROUP BY p.id
+    """, (q, q.upper())).fetchone()
+    if not row:
+        return jsonify({'error': f'Not found: {q}'}), 404
+    return jsonify(dict(row))
 
 
 @products_bp.route('/api/managed/<list_name>', methods=['POST'])

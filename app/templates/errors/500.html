@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block page_title %}Something went wrong{% endblock %}
+{% block content %}
+<div style="text-align:center; padding:60px 32px;">
+  <div style="font-size:64px; font-weight:700; color:var(--border); margin-bottom:8px;">500</div>
+  <p style="font-size:16px; color:var(--muted); margin-bottom:8px;">An unexpected error occurred.</p>
+  <p class="text-sm text-muted" style="margin-bottom:24px;">
+    Your data is safe. Try going back or refreshing the page.
+  </p>
+  <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">Go to dashboard</a>
+</div>
+{% endblock %}

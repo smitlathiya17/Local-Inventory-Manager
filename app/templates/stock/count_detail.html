@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block page_title %}{{ count.name | e }}{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('stock.count_list') }}" class="btn btn-secondary">← Back</a>
+  {% if count.status == 'Open' %}
+    <form method="post" action="{{ url_for('stock.count_apply', count_id=count.id) }}"
+          style="display:inline"
+          onsubmit="return confirm('Apply this count? This will adjust stock for all entered products.')">
+      <button class="btn btn-primary">Apply count</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width:860px;">
+
+  <div class="card card-sm mb-2" style="display:flex; gap:24px; flex-wrap:wrap; align-items:center;">
+    <div><span class="text-muted text-sm">Date</span><br>{{ count.date | format_date }}</div>
+    <div><span class="text-muted text-sm">Status</span><br>
+      <span class="status-badge {{ 'status-received' if count.status == 'Applied' else 'status-draft' }}">{{ count.status }}</span>
+    </div>
+    <div><span class="text-muted text-sm">Products</span><br>{{ lines | length }}</div>
+    {% set entered = lines | selectattr('counted_grams') | list | length %}
+    <div><span class="text-muted text-sm">Entered</span><br>{{ entered }} / {{ lines | length }}</div>
+    {% if count.status == 'Applied' %}
+      {% set adjustments = lines | selectattr('diff_grams') | selectattr('diff_grams', 'ne', 0) | list | length %}
+      <div><span class="text-muted text-sm">Adjustments made</span><br>{{ adjustments }}</div>
+    {% endif %}
+  </div>
+
+  {% if count.status == 'Open' %}
+  <form method="post">
+  {% endif %}
+
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Product</th>
+            <th style="text-align:right;">System stock</th>
+            <th style="text-align:right; width:150px;">Counted (kg)</th>
+            <th style="text-align:right;">Difference</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in lines %}
+          <tr>
+            <td style="font-family:monospace; font-size:12.5px;">{{ l.sku | e }}</td>
+            <td>{{ l.product_name | e }}</td>
+            <td style="text-align:right; font-family:monospace;">{{ l.system_grams | format_grams }}</td>
+            <td style="text-align:right;">
+              {% if count.status == 'Open' %}
+                <input type="number" name="counted_{{ l.id }}"
+                       id="counted_{{ l.id }}"
+                       step="0.001" min="0" class="input input-sm"
+                       style="width:110px; text-align:right;"
+                       value="{{ (l.counted_grams / 1000) | round(3) if l.counted_grams is not none else '' }}"
+                       oninput="updateDiff({{ l.id }}, {{ l.system_grams }}, this.value)">
+              {% else %}
+                <span style="font-family:monospace;">
+                  {{ (l.counted_grams / 1000) | round(3) if l.counted_grams is not none else '—' }}
+                </span>
+              {% endif %}
+            </td>
+            <td style="text-align:right; font-family:monospace;"
+                id="diff_{{ l.id }}">
+              {% if l.diff_grams is not none %}
+                <span class="{{ 'text-warn' if l.diff_grams < 0 else ('text-green' if l.diff_grams > 0 else 'text-muted') }}">
+                  {{ '+' if l.diff_grams > 0 }}{{ l.diff_grams | format_grams }}
+                </span>
+              {% elif l.counted_grams is not none %}
+                <span class="text-muted" id="diff_val_{{ l.id }}">
+                  {{ '+' if (l.counted_grams - l.system_grams) > 0 else '' }}{{ (l.counted_grams - l.system_grams) | format_grams }}
+                </span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if count.status == 'Open' %}
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+      <button type="submit" class="btn btn-secondary">Save entries</button>
+      <button type="button" class="btn btn-primary"
+              onclick="if(confirm('Apply this count? This will adjust stock for all entered products.')) { document.getElementById('apply-form').submit(); }">
+        Apply count
+      </button>
+    </div>
+  </form>
+  <form id="apply-form" method="post" action="{{ url_for('stock.count_apply', count_id=count.id) }}" style="display:none;"></form>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateDiff(lineId, systemGrams, val) {
+  var cell = document.getElementById('diff_' + lineId);
+  if (!val) { cell.innerHTML = '<span class="text-muted">—</span>'; return; }
+  var counted = Math.round(parseFloat(val) * 1000);
+  var diff    = counted - systemGrams;
+  var sign    = diff > 0 ? '+' : '';
+  var kg      = (Math.abs(diff) / 1000).toFixed(3);
+  var cls     = diff < 0 ? 'text-warn' : (diff > 0 ? 'text-green' : 'text-muted');
+  cell.innerHTML = '<span class="' + cls + '">' + sign + (diff < 0 ? '-' : '') + kg + '</span>';
+}
+</script>
+{% endblock %}

@@ -9,6 +9,9 @@ config.json
 *.db
 *.lock
 logs/
+backups/
+exports/
+tmp/
 .DS_Store
 venv/
 .venv/

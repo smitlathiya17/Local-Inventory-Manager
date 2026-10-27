@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block page_title %}Page not found{% endblock %}
+{% block content %}
+<div style="text-align:center; padding:60px 32px;">
+  <div style="font-size:64px; font-weight:700; color:var(--border); margin-bottom:8px;">404</div>
+  <p style="font-size:16px; color:var(--muted); margin-bottom:24px;">That page doesn't exist.</p>
+  <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">Go to dashboard</a>
+</div>
+{% endblock %}

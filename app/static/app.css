@@ -98,6 +98,28 @@ body.app-layout {
   color: var(--muted);
   line-height: 1.6;
 }
+.sidebar-close {
+  display: block;
+  margin-top: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--muted);
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+}
+.sidebar-close:hover { background: var(--bg-alt); color: var(--text); }
+.section-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 14px;
+}
 
 /* ── page header ────────────────────────────────────────────────────────── */
 .page-header {
@@ -419,6 +441,11 @@ body.shutdown-body {
 .status-part_paid       { background: var(--warn-lt); color: var(--warn); }
 .status-pending         { background: #F0EFED; color: var(--muted); }
 .status-void            { background: #FDE8E8; color: var(--red); }
+.status-sent            { background: #E8F0FD; color: #2563EB; }
+.status-accepted        { background: var(--green-lt); color: var(--green); }
+.status-rejected        { background: #FDE8E8; color: var(--red); }
+.status-expired         { background: #F0EFED; color: var(--muted); }
+.status-converted       { background: var(--green-lt); color: var(--green); }
 
 /* ── misc helpers ────────────────────────────────────────────────────────── */
 .text-muted  { color: var(--muted); }

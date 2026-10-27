@@ -1,12 +1,20 @@
 import sys
 from pathlib import Path
-from flask import Flask
+from flask import Flask, render_template
 from app.db import get_data_folder, last_saved_str
+
+
+def _bundle_dir() -> Path:
+    """PyInstaller 6+ puts bundled files in _internal/ (sys._MEIPASS).
+    Older versions and dev mode fall back to the project root."""
+    if getattr(sys, 'frozen', False):
+        return Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
+    return Path(__file__).parent.parent
 
 
 def create_app() -> Flask:
     if getattr(sys, 'frozen', False):
-        base = Path(sys.executable).parent
+        base = _bundle_dir()
         app = Flask(
             __name__,
             template_folder=str(base / 'app' / 'templates'),
@@ -23,6 +31,10 @@ def create_app() -> Flask:
     from app.routes.products import products_bp
     from app.routes.suppliers import suppliers_bp
     from app.routes.purchase_orders import po_bp
+    from app.routes.customers import customers_bp
+    from app.routes.sales import sales_bp
+    from app.routes.stock import stock_bp
+    from app.routes.excel import excel_bp
 
     app.register_blueprint(setup_bp)
     app.register_blueprint(main_bp)
@@ -30,6 +42,10 @@ def create_app() -> Flask:
     app.register_blueprint(products_bp)
     app.register_blueprint(suppliers_bp)
     app.register_blueprint(po_bp)
+    app.register_blueprint(customers_bp)
+    app.register_blueprint(sales_bp)
+    app.register_blueprint(stock_bp)
+    app.register_blueprint(excel_bp)
 
     from app.utils import paise_to_rupees_str, format_date, grams_to_kg_str, calc_line_total_paise, today_iso
 
@@ -54,6 +70,14 @@ def create_app() -> Flask:
 
     app.jinja_env.globals['calc_line_total'] = calc_line_total_paise
     app.jinja_env.globals['today_iso']       = today_iso
+
+    @app.errorhandler(404)
+    def _not_found(e):
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def _server_error(e):
+        return render_template('errors/500.html'), 500
 
     @app.context_processor
     def _sidebar_vars():

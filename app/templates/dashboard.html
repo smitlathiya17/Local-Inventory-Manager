@@ -1,37 +1,42 @@
 {% extends "base.html" %}
 
 {% block page_title %}Dashboard{% endblock %}
-
 {% block page_subtitle %}
   <p class="page-meta">{{ today }}</p>
 {% endblock %}
 
 {% block content %}
 <div class="stat-grid">
-  <div class="stat-card">
-    <div class="stat-label">Stock value</div>
-    <div class="stat-value">{{ stats.stock_value_paise | format_paise }}</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">kg in stock</div>
-    <div class="stat-value">{{ stats.total_kg }}</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Low stock items</div>
-    <div class="stat-value {{ 'warn' if stats.low_stock_count > 0 }}">{{ stats.low_stock_count }}</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Sales this month</div>
-    <div class="stat-value">{{ stats.sales_this_month_paise | format_paise }}</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Customers owe</div>
-    <div class="stat-value">{{ stats.customers_owe_paise | format_paise }}</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Open orders</div>
-    <div class="stat-value">{{ stats.open_orders }}</div>
-  </div>
+  <a href="{{ url_for('stock.total_stock') }}" style="text-decoration:none;">
+    <div class="stat-card">
+      <div class="stat-label">Stock value (at cost)</div>
+      <div class="stat-value">{{ stats.stock_value_paise | format_paise }}</div>
+    </div>
+  </a>
+  <a href="{{ url_for('stock.total_stock') }}" style="text-decoration:none;">
+    <div class="stat-card">
+      <div class="stat-label">kg in stock</div>
+      <div class="stat-value">{{ stats.total_kg }}</div>
+    </div>
+  </a>
+  <a href="{{ url_for('products.product_list') }}?low=1" style="text-decoration:none;">
+    <div class="stat-card">
+      <div class="stat-label">Low stock items</div>
+      <div class="stat-value {{ 'warn' if stats.low_stock_count > 0 }}">{{ stats.low_stock_count }}</div>
+    </div>
+  </a>
+  <a href="{{ url_for('sales.sale_list') }}" style="text-decoration:none;">
+    <div class="stat-card">
+      <div class="stat-label">Sales this month</div>
+      <div class="stat-value">{{ stats.sales_this_month_paise | format_paise }}</div>
+    </div>
+  </a>
+  <a href="{{ url_for('customers.customer_list') }}" style="text-decoration:none;">
+    <div class="stat-card">
+      <div class="stat-label">Customers owe</div>
+      <div class="stat-value {{ 'warn' if stats.customers_owe_paise > 0 }}">{{ stats.customers_owe_paise | format_paise }}</div>
+    </div>
+  </a>
 </div>
 
 <div class="panel-grid">
@@ -43,17 +48,18 @@
         {% for item in stats.top_sellers %}
         <div class="bar-row">
           <div class="bar-header">
-            <span>{{ item.name }}</span>
-            <span class="text-muted">{{ item.kg_str }}</span>
+            <a href="{{ url_for('products.product_edit', product_id=item.id) }}"
+               style="color:var(--text); text-decoration:none;">{{ item.name }}</a>
+            <span class="text-muted">{{ item.kg_str }} kg</span>
           </div>
           <div class="bar-track">
-            <div class="bar-fill" style="width:{{ (item.kg / max_kg * 100) | int }}%"></div>
+            <div class="bar-fill" style="width:{{ ((item.kg / max_kg) * 100) | int }}%"></div>
           </div>
         </div>
         {% endfor %}
       </div>
     {% else %}
-      <p class="text-muted text-sm">No sales yet.</p>
+      <p class="text-muted text-sm">No sales in the last 30 days.</p>
     {% endif %}
   </div>
 
@@ -62,11 +68,7 @@
     {% if stats.low_stock_items %}
       <table>
         <thead>
-          <tr>
-            <th>Product</th>
-            <th>Left</th>
-            <th>Reorder at</th>
-          </tr>
+          <tr><th>Product</th><th>Left</th><th>Reorder at</th></tr>
         </thead>
         <tbody>
           {% for item in stats.low_stock_items %}
@@ -90,31 +92,24 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr>
-            <th>Date</th>
-            <th>Invoice</th>
-            <th>Customer</th>
-            <th>kg</th>
-            <th>Total</th>
-            <th>Payment</th>
-          </tr>
+          <tr><th>Date</th><th>Invoice</th><th>Customer</th><th>kg</th><th>Total</th><th>Status</th></tr>
         </thead>
         <tbody>
           {% for s in stats.recent_sales %}
           <tr>
-            <td>{{ s.date_display }}</td>
-            <td>{{ s.invoice_number }}</td>
+            <td style="white-space:nowrap;">{{ s.date_display }}</td>
+            <td><a href="{{ url_for('sales.sale_detail', sale_id=s.id) }}">{{ s.invoice_number }}</a></td>
             <td>{{ s.customer_name }}</td>
             <td>{{ s.kg_str }}</td>
             <td>{{ s.total_paise | format_paise }}</td>
-            <td>{{ s.status }}</td>
+            <td><span class="status-badge status-{{ s.status | lower | replace(' ','_') }}">{{ s.status }}</span></td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   {% else %}
-    <p class="text-muted text-sm">No sales yet. Add products to get started.</p>
+    <p class="text-muted text-sm">No sales yet.</p>
   {% endif %}
 </div>
 {% endblock %}

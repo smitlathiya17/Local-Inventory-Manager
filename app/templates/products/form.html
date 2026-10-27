@@ -136,15 +136,7 @@
                placeholder="0.00">
       </div>
 
-      {% if is_new %}
-      <div class="form-group">
-        <label for="opening_stock">Opening stock (kg)</label>
-        <input id="opening_stock" name="opening_stock" type="number" step="0.001" min="0" class="input"
-               value="{{ form.get('opening_stock', '0') | e }}"
-               placeholder="0.000">
-        <small class="text-muted">Stock on hand when you start using this product.</small>
-      </div>
-      {% else %}
+      {% if not is_new %}
       <div class="form-group">
         <label>Current stock</label>
         <div class="input" style="background:var(--bg); cursor:default;">

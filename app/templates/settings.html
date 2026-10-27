@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-
 {% block page_title %}Settings{% endblock %}
 
 {% block content %}
-<div style="max-width: 600px;">
+<div style="max-width:640px; display:flex; flex-direction:column; gap:16px;">
 
   <form method="post">
+
     <div class="card mb-2">
-      <h3 style="font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:16px;">Business info</h3>
+      <h3 class="section-heading">Business info</h3>
       <div class="form-group">
         <label for="business_name">Business name</label>
         <input type="text" id="business_name" name="business_name" class="input"
@@ -17,7 +17,7 @@
         <label for="business_address">Address</label>
         <textarea id="business_address" name="business_address" class="input" rows="2">{{ settings.business_address | e }}</textarea>
       </div>
-      <div class="form-group">
+      <div class="form-group" style="margin-bottom:0;">
         <label for="business_phone">Phone</label>
         <input type="text" id="business_phone" name="business_phone" class="input"
                value="{{ settings.business_phone | e }}">
@@ -25,70 +25,118 @@
     </div>
 
     <div class="card mb-2">
-      <h3 style="font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:16px;">Number series</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="form-group">
+      <h3 class="section-heading">Number series</h3>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="form-group" style="margin-bottom:0;">
           <label for="invoice_prefix">Invoice prefix</label>
-          <input type="text" id="invoice_prefix" name="invoice_prefix" class="input" value="{{ settings.invoice_prefix | e }}">
+          <input type="text" id="invoice_prefix" name="invoice_prefix" class="input"
+                 value="{{ settings.invoice_prefix | e }}">
         </div>
-        <div class="form-group">
+        <div class="form-group" style="margin-bottom:0;">
           <label for="invoice_next">Next number</label>
-          <input type="number" id="invoice_next" name="invoice_next" class="input" min="1" value="{{ settings.invoice_next | e }}">
+          <input type="number" id="invoice_next" name="invoice_next" class="input"
+                 min="1" value="{{ settings.invoice_next | e }}">
         </div>
-        <div class="form-group">
-          <label for="po_prefix">PO prefix</label>
-          <input type="text" id="po_prefix" name="po_prefix" class="input" value="{{ settings.po_prefix | e }}">
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="po_prefix">Challan prefix</label>
+          <input type="text" id="po_prefix" name="po_prefix" class="input"
+                 value="{{ settings.po_prefix | e }}">
         </div>
-        <div class="form-group">
+        <div class="form-group" style="margin-bottom:0;">
           <label for="po_next">Next number</label>
-          <input type="number" id="po_next" name="po_next" class="input" min="1" value="{{ settings.po_next | e }}">
-        </div>
-        <div class="form-group">
-          <label for="quotation_prefix">Quotation prefix</label>
-          <input type="text" id="quotation_prefix" name="quotation_prefix" class="input" value="{{ settings.quotation_prefix | e }}">
-        </div>
-        <div class="form-group">
-          <label for="quotation_next">Next number</label>
-          <input type="number" id="quotation_next" name="quotation_next" class="input" min="1" value="{{ settings.quotation_next | e }}">
+          <input type="number" id="po_next" name="po_next" class="input"
+                 min="1" value="{{ settings.po_next | e }}">
         </div>
       </div>
     </div>
 
     <div class="card mb-2">
-      <h3 style="font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:16px;">Stock defaults</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="form-group">
+      <h3 class="section-heading">Stock</h3>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="form-group" style="margin-bottom:0;">
           <label for="low_stock_default">Default reorder level (kg)</label>
-          <input type="number" id="low_stock_default" name="low_stock_default" class="input" min="0" step="0.001" value="{{ settings.low_stock_default | e }}">
+          <input type="number" id="low_stock_default" name="low_stock_default"
+                 class="input" min="0" step="0.001"
+                 value="{{ settings.low_stock_default | e }}">
         </div>
-        <div class="form-group">
+        <div class="form-group" style="margin-bottom:0;">
           <label for="allow_negative_stock">Allow negative stock</label>
           <select id="allow_negative_stock" name="allow_negative_stock" class="input">
             <option value="0" {{ 'selected' if settings.allow_negative_stock == '0' }}>No – warn and require override</option>
             <option value="1" {{ 'selected' if settings.allow_negative_stock == '1' }}>Yes – allow by default</option>
           </select>
         </div>
-        <div class="form-group">
-          <label for="backup_retention">Keep last N backups</label>
-          <input type="number" id="backup_retention" name="backup_retention" class="input" min="1" max="365" value="{{ settings.backup_retention | e }}">
-        </div>
       </div>
     </div>
 
-    <div style="display:flex;justify-content:flex-end;">
+    <div style="display:flex; justify-content:flex-end;">
       <button type="submit" class="btn btn-primary">Save settings</button>
     </div>
   </form>
 
-  <div class="card mt-2">
-    <h3 style="font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Data folder</h3>
-    <p class="text-sm text-muted mb-1">{{ data_folder_path }}</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+  {# ── Backup & restore ──────────────────────────────────────────────────── #}
+  <div class="card">
+    <h3 class="section-heading">Backup &amp; restore</h3>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
+      <form method="post" action="{{ url_for('settings.backup_now') }}">
+        <button type="submit" class="btn btn-secondary">Create backup now</button>
+      </form>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label style="font-size:13px; color:var(--muted); margin:0;">Keep last</label>
+        <form method="post" style="display:flex; gap:6px; align-items:center;">
+          <input type="number" name="backup_retention" class="input input-sm"
+                 style="width:64px;" min="1" max="365"
+                 value="{{ settings.backup_retention | e }}">
+          <button type="submit" class="btn btn-secondary btn-sm">Save</button>
+        </form>
+        <label style="font-size:13px; color:var(--muted); margin:0;">backups</label>
+      </div>
+    </div>
+
+    {% if backups %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Backup file</th><th>Size</th><th>Type</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for b in backups %}
+          <tr>
+            <td style="font-family:monospace; font-size:12px;">{{ b.display }}</td>
+            <td class="text-muted">{{ b.size_kb }} KB</td>
+            <td>
+              <span class="status-badge {{ 'status-draft' if b.label == 'auto' else 'status-received' }}">
+                {{ b.label }}
+              </span>
+            </td>
+            <td>
+              <form method="post" action="{{ url_for('settings.restore') }}"
+                    onsubmit="return confirm('Restore from {{ b.name }}? This will REPLACE all current data. Make sure to back up first.')">
+                <input type="hidden" name="backup_name" value="{{ b.name }}">
+                <button type="submit" class="btn btn-secondary btn-sm">Restore</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="text-muted text-sm">No backups yet. A backup is created automatically each time you open the app.</p>
+    {% endif %}
+  </div>
+
+  {# ── Data folder ───────────────────────────────────────────────────────── #}
+  <div class="card">
+    <h3 class="section-heading">Data folder</h3>
+    <p class="text-sm text-muted" style="margin-bottom:12px; font-family:monospace;">{{ data_folder_path }}</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <form method="post" action="{{ url_for('setup.open_another') }}">
         <button type="submit" class="btn btn-secondary">Open another data folder</button>
       </form>
       <form method="post" action="{{ url_for('main.shutdown') }}"
-            onsubmit="return confirm('This will close Beads Manager. You can safely remove the pendrive after.')">
+            onsubmit="return confirm('This will close Inventory Manager. You can safely remove the pendrive after.')">
         <button type="submit" class="btn btn-danger">Close &amp; safe to remove pendrive</button>
       </form>
     </div>

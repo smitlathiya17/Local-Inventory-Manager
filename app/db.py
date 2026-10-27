@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import json
+import shutil
 import sqlite3
 import threading
 from pathlib import Path
@@ -16,8 +17,16 @@ _last_saved: Optional[datetime] = None
 
 
 def get_base_dir() -> Path:
+    """Returns the directory next to the exe (for config.json, lock files)."""
     if getattr(sys, 'frozen', False):
         return Path(sys.executable).parent
+    return Path(__file__).parent.parent
+
+
+def _bundle_dir() -> Path:
+    """PyInstaller 6+ puts bundled datas in _internal/ via sys._MEIPASS."""
+    if getattr(sys, 'frozen', False):
+        return Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
     return Path(__file__).parent.parent
 
 
@@ -121,6 +130,8 @@ def get_db() -> sqlite3.Connection:  # type: ignore[return]
                         _force_lock(df)
 
                 db_path = df / 'beads.db'
+                _auto_backup(df, db_path)
+
                 c = sqlite3.connect(str(db_path), check_same_thread=False)
                 c.row_factory = sqlite3.Row
                 c.execute("PRAGMA journal_mode=DELETE")
@@ -128,6 +139,16 @@ def get_db() -> sqlite3.Connection:  # type: ignore[return]
                 c.execute("PRAGMA foreign_keys=ON")
                 _run_migrations(c)
                 _conn = c
+
+                # Prune old backups using the stored retention setting
+                try:
+                    row = c.execute(
+                        "SELECT value FROM settings WHERE key='backup_retention'"
+                    ).fetchone()
+                    retention = int(row['value']) if row else 30
+                except Exception:
+                    retention = 30
+                prune_backups(retention)
     return _conn
 
 
@@ -150,7 +171,7 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
     row = conn.execute("SELECT version FROM schema_version").fetchone()
     current = row['version'] if row else 0
 
-    mdir = get_base_dir() / 'migrations'
+    mdir = _bundle_dir() / 'migrations'
     for mf in sorted(mdir.glob('*.sql')):
         try:
             num = int(mf.stem[:3])
@@ -200,3 +221,108 @@ def _pid_alive(pid: int) -> bool:
         return True
     except OSError:
         return False
+
+
+# ── backup / restore ──────────────────────────────────────────────────────────
+
+def _auto_backup(df: Path, db_path: Path) -> None:
+    """Copy db to backups/ on startup, only if the file has real data (>8 KB)."""
+    if not db_path.exists() or db_path.stat().st_size < 8192:
+        return
+    backups_dir = df / 'backups'
+    backups_dir.mkdir(exist_ok=True)
+    ts  = datetime.now().strftime('%Y%m%d_%H%M%S')
+    dst = backups_dir / f'beads_{ts}_auto.db'
+    try:
+        shutil.copy2(str(db_path), str(dst))
+    except Exception:
+        pass
+
+
+def create_backup(label: str = 'manual') -> Optional[Path]:
+    """Create a named backup right now. Returns the backup path or None."""
+    df = get_data_folder()
+    if df is None:
+        return None
+    db_path = df / 'beads.db'
+    if not db_path.exists():
+        return None
+    # Flush pending writes via the open connection
+    global _conn
+    if _conn:
+        try:
+            _conn.commit()
+        except Exception:
+            pass
+    backups_dir = df / 'backups'
+    backups_dir.mkdir(exist_ok=True)
+    ts  = datetime.now().strftime('%Y%m%d_%H%M%S')
+    dst = backups_dir / f'beads_{ts}_{label}.db'
+    try:
+        shutil.copy2(str(db_path), str(dst))
+        return dst
+    except Exception:
+        return None
+
+
+def list_backups() -> list[dict]:
+    df = get_data_folder()
+    if df is None:
+        return []
+    backups_dir = df / 'backups'
+    if not backups_dir.exists():
+        return []
+    files = sorted(backups_dir.glob('beads_*.db'), reverse=True)
+    result = []
+    for f in files:
+        stat = f.stat()
+        ts   = stat.st_mtime
+        result.append({
+            'name':     f.name,
+            'size_kb':  max(1, stat.st_size // 1024),
+            'display':  datetime.fromtimestamp(ts).strftime('%d %b %Y %H:%M'),
+            'label':    'auto' if f.name.endswith('_auto.db') else 'manual',
+        })
+    return result
+
+
+def prune_backups(retention: int = 30) -> None:
+    df = get_data_folder()
+    if df is None:
+        return
+    backups_dir = df / 'backups'
+    if not backups_dir.exists():
+        return
+    files = sorted(backups_dir.glob('beads_*.db'), reverse=True)
+    for f in files[max(1, retention):]:
+        try:
+            f.unlink()
+        except OSError:
+            pass
+
+
+def restore_backup(backup_name: str) -> bool:
+    """Replace beads.db with the named backup. Keeps lock and data folder."""
+    global _conn, _last_saved
+    df = get_data_folder()
+    if df is None:
+        return False
+    # Sanitise: no path traversal
+    backup_name = Path(backup_name).name
+    backup_path = df / 'backups' / backup_name
+    if not backup_path.exists():
+        return False
+    db_path = df / 'beads.db'
+    with _lock:
+        if _conn:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            _conn = None
+        _last_saved = None
+        try:
+            shutil.copy2(str(backup_path), str(db_path))
+            return True
+        except Exception:
+            return False
