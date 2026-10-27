@@ -18,7 +18,8 @@ def index():
 
 @setup_bp.route('/setup')
 def setup_page():
-    start = str(Path.home())
+    # On Windows, start at the drives list so pendrive is immediately visible
+    start = '' if sys.platform == 'win32' else str(Path.home())
     return render_template('setup.html', start_path=start)
 
 

@@ -51,7 +51,8 @@
     function renderBrowser(data) {
       currentPath = data.path || '';
       document.getElementById('current-path').textContent = data.path || 'Drives';
-      document.getElementById('btn-up').disabled = !data.parent;
+      // Disabled only when showing the top-level drives list (path is empty)
+      document.getElementById('btn-up').disabled = !data.path;
 
       var list = document.getElementById('folder-list');
       list.innerHTML = '';
@@ -74,12 +75,10 @@
     }
 
     function navigateUp() {
-      // re-browse with no path to get drives list on Windows, or go up
+      if (!currentPath) return;
       fetch('/api/browse?path=' + encodeURIComponent(currentPath))
         .then(function(r) { return r.json(); })
-        .then(function(d) {
-          if (d.parent) browse(d.parent); else browse('');
-        });
+        .then(function(d) { browse(d.parent || ''); });
     }
 
     function showNewFolder() {
@@ -143,7 +142,7 @@
       if (data.status === 'ok') window.location.href = data.redirect;
     }
 
-    // Initial browse
+    // On Windows start_path is '' → shows drives list; on Mac/Linux shows home
     browse(currentPath);
   </script>
 </body>
