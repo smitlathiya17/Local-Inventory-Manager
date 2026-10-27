@@ -4,21 +4,11 @@
 {% block page_actions %}
   <a href="{{ url_for('po.po_list') }}" class="btn btn-secondary">← Back</a>
   <a href="{{ url_for('po.po_print', po_id=po.id) }}" class="btn btn-secondary" target="_blank">Print</a>
-  {% if editable %}
-    <a href="{{ url_for('po.po_edit', po_id=po.id) }}" class="btn btn-secondary">Edit</a>
-    <form method="post" action="{{ url_for('po.po_mark_ordered', po_id=po.id) }}" style="display:inline">
-      <button type="submit" class="btn btn-primary">Mark as Ordered</button>
-    </form>
-  {% endif %}
-  {% if receivable %}
-    <a href="{{ url_for('po.po_receive', po_id=po.id) }}" class="btn btn-primary">Receive stock</a>
-  {% endif %}
-  {% if po.status not in ('Received', 'Cancelled') %}
-    <form method="post" action="{{ url_for('po.po_cancel', po_id=po.id) }}" style="display:inline"
-          onsubmit="return confirm('Cancel this challan?')">
-      <button type="submit" class="btn btn-secondary">Cancel</button>
-    </form>
-  {% endif %}
+  <a href="{{ url_for('po.po_edit', po_id=po.id) }}" class="btn btn-secondary">Edit</a>
+  <form method="post" action="{{ url_for('po.po_delete', po_id=po.id) }}" style="display:inline"
+        onsubmit="return confirm('Delete challan {{ po.po_number | e }}? Stock will be reversed.')">
+    <button type="submit" class="btn btn-secondary" style="color:var(--red);">Delete</button>
+  </form>
 {% endblock %}
 
 {% block content %}
@@ -26,20 +16,16 @@
 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:900px; margin-bottom:16px;">
   <div class="card">
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 16px;">
-      <div><div class="text-muted text-sm">Status</div>
-        <span class="status-badge status-{{ po.status | lower | replace(' ','_') }}">{{ po.status }}</span></div>
       <div><div class="text-muted text-sm">Supplier</div>
         <strong>{{ po.supplier_name or '—' }}</strong></div>
-      <div><div class="text-muted text-sm">Order date</div>{{ po.date | format_date }}</div>
-      <div><div class="text-muted text-sm">Expected</div>
-        {{ po.expected_date | format_date if po.expected_date else '—' }}</div>
+      <div><div class="text-muted text-sm">Date</div>{{ po.date | format_date }}</div>
     </div>
     {% if po.notes %}
       <div class="mt-1 text-muted text-sm">{{ po.notes | e }}</div>
     {% endif %}
   </div>
   <div class="card" style="display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px;">
-    <div class="text-muted text-sm">Order total</div>
+    <div class="text-muted text-sm">Challan total</div>
     <div style="font-size:28px; font-weight:700;">{{ total_paise | format_paise }}</div>
   </div>
 </div>
@@ -50,26 +36,28 @@
       <thead>
         <tr>
           <th>SKU</th><th>Product</th>
-          <th>Ordered</th><th>Received</th><th>Remaining</th>
-          <th>Cost / kg</th><th>Line total</th>
+          <th style="text-align:right;">Qty (kg)</th>
+          <th style="text-align:right;">Cost / kg</th>
+          <th style="text-align:right;">Line total</th>
         </tr>
       </thead>
       <tbody>
         {% for l in lines %}
-        {% set remaining = l.grams - l.received_grams %}
         <tr>
           <td style="font-family:monospace; font-size:12.5px;">{{ l.sku | e }}</td>
           <td>{{ l.product_name | e }}</td>
-          <td>{{ l.grams | format_grams }} kg</td>
-          <td>{{ l.received_grams | format_grams }} kg</td>
-          <td class="{{ 'text-warn' if remaining > 0 else 'text-green' }}">
-            {{ remaining | format_grams }} kg
-          </td>
-          <td>{{ l.cost_per_kg_paise | format_paise }}</td>
-          <td>{{ calc_line_total(l.cost_per_kg_paise, l.grams) | format_paise }}</td>
+          <td style="text-align:right;">{{ l.grams | format_grams }} kg</td>
+          <td style="text-align:right;">{{ l.cost_per_kg_paise | format_paise }}</td>
+          <td style="text-align:right;">{{ calc_line_total(l.cost_per_kg_paise, l.grams) | format_paise }}</td>
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4" style="text-align:right; font-weight:600; color:var(--muted);">Total</td>
+          <td style="text-align:right; font-weight:700;">{{ total_paise | format_paise }}</td>
+        </tr>
+      </tfoot>
     </table>
   </div>
 </div>

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block page_title %}Sales{% endblock %}
+{% block page_title %}Record Sales{% endblock %}
 {% block page_actions %}
-  <a href="{{ url_for('sales.sale_new') }}" class="btn btn-primary">New invoice</a>
+  <a href="{{ url_for('sales.sale_new') }}" class="btn btn-primary">New challan</a>
 {% endblock %}
 
 {% block content %}
@@ -36,7 +36,7 @@
     <table>
       <thead>
         <tr>
-          <th>Invoice #</th><th>Customer</th><th>Date</th>
+          <th>Challan #</th><th>Customer</th><th>Date</th>
           <th>Total</th><th>Paid</th><th>Status</th><th>Actions</th>
         </tr>
       </thead>
@@ -58,6 +58,10 @@
             {% if not r.voided %}
               <a class="action-link" href="{{ url_for('sales.sale_print', sale_id=r.id) }}" target="_blank">Print</a>
             {% endif %}
+            <form method="post" action="{{ url_for('sales.sale_delete', sale_id=r.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete challan {{ r.invoice_number | e }}? Stock will be reversed.')">
+              <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--red);">Delete</button>
+            </form>
           </td>
         </tr>
         {% endfor %}
@@ -66,7 +70,7 @@
   </div>
   {% else %}
     <p style="padding:32px; text-align:center; color:var(--muted);">
-      No invoices found. <a href="{{ url_for('sales.sale_new') }}">Create one.</a>
+      No challans found. <a href="{{ url_for('sales.sale_new') }}">Create one.</a>
     </p>
   {% endif %}
 </div>

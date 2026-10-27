@@ -166,7 +166,7 @@ def sale_new():
         errors, lines = _parse_sale_form(request.form, products)
 
         if not invoice_number:
-            errors.append('Invoice number is required.')
+            errors.append('Challan number is required.')
         elif db.execute("SELECT id FROM sales WHERE invoice_number=?", (invoice_number,)).fetchone():
             errors.append(f'Invoice number "{invoice_number}" already exists.')
 
@@ -241,7 +241,7 @@ def sale_new():
             _bump_invoice_number(db, nxt)
 
         mark_saved()
-        flash(f'Invoice {invoice_number} created.', 'banner-success')
+        flash(f'Challan {invoice_number} recorded.', 'banner-success')
         return redirect(url_for('sales.sale_detail', sale_id=sale_id))
 
     return render_template('sales/form.html',
@@ -259,14 +259,14 @@ def sale_edit(sale_id: int):
     if not sale:
         abort(404)
     if sale['voided']:
-        flash('Voided invoices cannot be edited.', 'banner-error')
+        flash('Voided challans cannot be edited.', 'banner-error')
         return redirect(url_for('sales.sale_detail', sale_id=sale_id))
 
     has_payments = db.execute(
         "SELECT 1 FROM payments WHERE sale_id=? AND voided=0 LIMIT 1", (sale_id,)
     ).fetchone()
     if has_payments:
-        flash('Invoices with payments cannot be edited. Void the invoice if needed.', 'banner-error')
+        flash('Challans with payments cannot be edited. Void the challan if needed.', 'banner-error')
         return redirect(url_for('sales.sale_detail', sale_id=sale_id))
 
     customers = db.execute("SELECT id, name FROM customers WHERE active=1 ORDER BY name").fetchall()
@@ -281,7 +281,7 @@ def sale_edit(sale_id: int):
         errors, lines = _parse_sale_form(request.form, products)
 
         if not invoice_number:
-            errors.append('Invoice number is required.')
+            errors.append('Challan number is required.')
         elif db.execute(
             "SELECT id FROM sales WHERE invoice_number=? AND id!=?", (invoice_number, sale_id)
         ).fetchone():
@@ -352,7 +352,7 @@ def sale_edit(sale_id: int):
                 )
 
         mark_saved()
-        flash(f'Invoice {invoice_number} updated.', 'banner-success')
+        flash(f'Challan {invoice_number} updated.', 'banner-success')
         return redirect(url_for('sales.sale_detail', sale_id=sale_id))
 
     return render_template('sales/form.html',
@@ -397,7 +397,7 @@ def sale_void(sale_id: int):
     db = get_db()
     sale = db.execute("SELECT * FROM sales WHERE id=?", (sale_id,)).fetchone()
     if not sale or sale['voided']:
-        flash('Invoice is already voided.', 'banner-error')
+        flash('Challan is already voided.', 'banner-error')
         return redirect(url_for('sales.sale_detail', sale_id=sale_id))
 
     lines = _sale_lines(db, sale_id)
@@ -412,8 +412,26 @@ def sale_void(sale_id: int):
             )
         db.execute("UPDATE sales SET voided=1 WHERE id=?", (sale_id,))
     mark_saved()
-    flash(f'Invoice {sale["invoice_number"]} voided. Stock reversed.', 'banner-success')
+    flash(f'Challan {sale["invoice_number"]} voided. Stock reversed.', 'banner-success')
     return redirect(url_for('sales.sale_detail', sale_id=sale_id))
+
+
+# ── delete ────────────────────────────────────────────────────────────────────
+
+@sales_bp.route('/sales/<int:sale_id>/delete', methods=['POST'])
+def sale_delete(sale_id: int):
+    db = get_db()
+    sale = db.execute("SELECT invoice_number FROM sales WHERE id=?", (sale_id,)).fetchone()
+    if not sale:
+        abort(404)
+    with db:
+        db.execute("DELETE FROM stock_movements WHERE ref_type='sale' AND ref_id=?", (sale_id,))
+        db.execute("DELETE FROM sale_lines WHERE sale_id=?", (sale_id,))
+        db.execute("DELETE FROM payments WHERE sale_id=?", (sale_id,))
+        db.execute("DELETE FROM sales WHERE id=?", (sale_id,))
+    mark_saved()
+    flash(f'Challan {sale["invoice_number"]} deleted. Stock reversed.', 'banner-success')
+    return redirect(url_for('sales.sale_list'))
 
 
 # ── print ─────────────────────────────────────────────────────────────────────

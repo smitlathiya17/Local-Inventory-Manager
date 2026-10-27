@@ -14,7 +14,7 @@
   <div class="card mb-2">
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
       <div class="form-group" style="margin-bottom:0;">
-        <label for="invoice_number">Invoice number</label>
+        <label for="invoice_number">Challan number</label>
         <input id="invoice_number" name="invoice_number" type="text" class="input"
                value="{{ form.invoice_number or inv_number }}"
                style="font-family:monospace;" required>
@@ -97,7 +97,7 @@
   {% endif %}
 
   <div style="display:flex; justify-content:flex-end;">
-    <button type="submit" class="btn btn-primary">{{ 'Create invoice' if is_new else 'Save changes' }}</button>
+    <button type="submit" class="btn btn-primary">{{ 'Record challan' if is_new else 'Save changes' }}</button>
   </div>
 </form>
 </div>

@@ -11,19 +11,26 @@
     <table>
       <thead>
         <tr>
-          <th>Name</th><th>Contact</th><th>Phone</th><th>Address</th><th>Actions</th>
+          <th>Name</th><th>Contact</th><th>Phone</th>
+          <th style="text-align:right;">Outstanding</th><th>Challans</th><th>Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for s in rows %}
         <tr>
-          <td style="font-weight:500;">{{ s.name | e }}</td>
+          <td style="font-weight:500;">
+            <a href="{{ url_for('suppliers.supplier_detail', supplier_id=s.id) }}">{{ s.name | e }}</a>
+          </td>
           <td>{{ s.contact | e or '—' }}</td>
           <td>{{ s.phone | e or '—' }}</td>
-          <td class="text-muted">{{ s.address | e or '—' }}</td>
+          <td style="text-align:right; font-family:monospace;
+                     {{ 'color:var(--warn); font-weight:600;' if s.outstanding > 0 }}">
+            {{ s.outstanding | format_paise }}
+          </td>
+          <td class="text-muted">{{ s.po_count }}</td>
           <td>
+            <a class="action-link" href="{{ url_for('suppliers.supplier_detail', supplier_id=s.id) }}">View</a>
             <a class="action-link" href="{{ url_for('suppliers.supplier_edit', supplier_id=s.id) }}">Edit</a>
-            <a class="action-link" href="{{ url_for('po.po_list') }}?supplier={{ s.id }}">Orders</a>
           </td>
         </tr>
         {% endfor %}

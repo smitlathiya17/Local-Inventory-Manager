@@ -18,7 +18,7 @@
       <li><a href="{{ url_for('products.product_list') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('products.') }}">Products</a></li>
       <li><a href="{{ url_for('stock.total_stock') }}"                    class="{{ 'active' if request.endpoint and request.endpoint.startswith('stock.') }}">Total stock</a></li>
       <li><a href="{{ url_for('po.po_list') }}"                           class="{{ 'active' if request.endpoint and request.endpoint.startswith('po.') }}">Record Purchase</a></li>
-      <li><a href="{{ url_for('sales.sale_list') }}"                       class="{{ 'active' if request.endpoint and request.endpoint.startswith('sales.') }}">Sales</a></li>
+      <li><a href="{{ url_for('sales.sale_list') }}"                       class="{{ 'active' if request.endpoint and request.endpoint.startswith('sales.') }}">Record Sales</a></li>
       <li><a href="{{ url_for('customers.customer_list') }}"              class="{{ 'active' if request.endpoint and request.endpoint.startswith('customers.') }}">Customers</a></li>
       <li><a href="{{ url_for('suppliers.supplier_list') }}"              class="{{ 'active' if request.endpoint and request.endpoint.startswith('suppliers.') }}">Suppliers</a></li>
       <li><a href="{{ url_for('excel.excel_index') }}"  class="{{ 'active' if request.endpoint and request.endpoint.startswith('excel.') }}">Excel &amp; backup</a></li>

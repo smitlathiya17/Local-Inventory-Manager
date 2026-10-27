@@ -8,10 +8,14 @@
   {% endif %}
   {% if not sale.voided %}
     <form method="post" action="{{ url_for('sales.sale_void', sale_id=sale.id) }}" style="display:inline"
-          onsubmit="return confirm('Void this invoice? Stock will be reversed.')">
+          onsubmit="return confirm('Void this challan? Stock will be reversed.')">
       <button type="submit" class="btn btn-secondary">Void</button>
     </form>
   {% endif %}
+  <form method="post" action="{{ url_for('sales.sale_delete', sale_id=sale.id) }}" style="display:inline"
+        onsubmit="return confirm('Delete this challan permanently? Stock will be reversed.')">
+    <button type="submit" class="btn btn-secondary" style="color:var(--red);">Delete</button>
+  </form>
 {% endblock %}
 
 {% block content %}
@@ -35,7 +39,7 @@
     </div>
     <div class="card">
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 16px;">
-        <div><div class="text-muted text-sm">Invoice total</div>
+        <div><div class="text-muted text-sm">Challan total</div>
           <div style="font-size:22px; font-weight:700;">{{ total_paise | format_paise }}</div></div>
         <div><div class="text-muted text-sm">Paid</div>
           <div style="font-size:22px; font-weight:700; color:var(--green);">{{ paid_paise | format_paise }}</div></div>

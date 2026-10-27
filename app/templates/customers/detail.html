@@ -4,7 +4,7 @@
   <a href="{{ url_for('customers.customer_list') }}" class="btn btn-secondary">← Back</a>
   <a href="{{ url_for('customers.customer_edit', customer_id=customer.id) }}" class="btn btn-secondary">Edit</a>
   <a href="{{ url_for('customers.customer_statement', customer_id=customer.id) }}" class="btn btn-secondary" target="_blank">Statement</a>
-  <a href="{{ url_for('sales.sale_new') }}?customer_id={{ customer.id }}" class="btn btn-primary">New invoice</a>
+  <a href="{{ url_for('sales.sale_new') }}?customer_id={{ customer.id }}" class="btn btn-primary">New challan</a>
 {% endblock %}
 
 {% block content %}
@@ -58,7 +58,6 @@
           <option value="cash">Cash</option>
           <option value="upi">UPI</option>
           <option value="bank">Bank transfer</option>
-          <option value="cheque">Cheque</option>
         </select>
       </div>
       <div>
@@ -89,7 +88,7 @@
             <td style="white-space:nowrap;">{{ e.date | format_date }}</td>
             <td>
               {% if e.type == 'invoice' %}
-                <span style="color:var(--warn); font-size:12px; font-weight:500;">Invoice</span>
+                <span style="color:var(--warn); font-size:12px; font-weight:500;">Challan</span>
               {% else %}
                 <span style="color:var(--green); font-size:12px; font-weight:500;">Payment</span>
               {% endif %}

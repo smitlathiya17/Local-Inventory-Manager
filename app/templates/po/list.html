@@ -9,15 +9,6 @@
 {# ── filter bar ── #}
 <form class="card card-sm mb-2" method="get" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
   <div>
-    <label>Status</label>
-    <select name="status" class="input">
-      <option value="">All statuses</option>
-      {% for s in statuses %}
-        <option value="{{ s }}" {{ 'selected' if f_status == s }}>{{ s }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div>
     <label>Supplier</label>
     <select name="supplier" class="input">
       <option value="">All suppliers</option>
@@ -27,7 +18,7 @@
     </select>
   </div>
   <button type="submit" class="btn btn-secondary btn-sm" style="margin-top:18px;">Filter</button>
-  {% if f_status or f_supplier %}
+  {% if f_supplier %}
     <a href="{{ url_for('po.po_list') }}" class="btn btn-secondary btn-sm" style="margin-top:18px;">Clear</a>
   {% endif %}
 </form>
@@ -39,7 +30,7 @@
       <thead>
         <tr>
           <th>Challan #</th><th>Supplier</th><th>Date</th>
-          <th>Expected</th><th>Status</th><th>Ordered</th><th>Received</th><th>Actions</th>
+          <th style="text-align:right;">Total</th><th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -50,18 +41,14 @@
           </td>
           <td>{{ row.supplier_name or '—' }}</td>
           <td style="white-space:nowrap;">{{ row.date | format_date }}</td>
-          <td style="white-space:nowrap;">{{ row.expected_date | format_date if row.expected_date else '—' }}</td>
-          <td><span class="status-badge status-{{ row.status | lower | replace(' ','_') }}">{{ row.status }}</span></td>
-          <td>{{ row.total_grams | format_grams }} kg</td>
-          <td>{{ row.received_grams | format_grams }} kg</td>
+          <td style="text-align:right; font-family:monospace;">{{ row.total_paise | format_paise }}</td>
           <td>
             <a class="action-link" href="{{ url_for('po.po_detail', po_id=row.id) }}">View</a>
-            {% if row.status == 'Draft' %}
-              <a class="action-link" href="{{ url_for('po.po_edit', po_id=row.id) }}">Edit</a>
-            {% endif %}
-            {% if row.status in ('Ordered','Partly received') %}
-              <a class="action-link" href="{{ url_for('po.po_receive', po_id=row.id) }}">Receive</a>
-            {% endif %}
+            <a class="action-link" href="{{ url_for('po.po_edit', po_id=row.id) }}">Edit</a>
+            <form method="post" action="{{ url_for('po.po_delete', po_id=row.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete challan {{ row.po_number | e }}? Stock will be reversed.')">
+              <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--red);">Delete</button>
+            </form>
           </td>
         </tr>
         {% endfor %}
@@ -70,7 +57,7 @@
   </div>
   {% else %}
     <p style="padding:32px; text-align:center; color:var(--muted);">
-      No purchase orders yet. <a href="{{ url_for('po.po_new') }}">Create one.</a>
+      No challans yet. <a href="{{ url_for('po.po_new') }}">Create one.</a>
     </p>
   {% endif %}
 </div>

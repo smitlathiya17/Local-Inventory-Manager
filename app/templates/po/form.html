@@ -34,11 +34,6 @@
         <input id="date" name="date" type="date" class="input"
                value="{{ form.date or (po.date if not is_new else '') or today_iso() }}">
       </div>
-      <div class="form-group" style="margin-bottom:0;">
-        <label for="expected_date">Expected delivery</label>
-        <input id="expected_date" name="expected_date" type="date" class="input"
-               value="{{ form.expected_date or (po.expected_date if not is_new else '') or '' }}">
-      </div>
       <div class="form-group" style="margin-bottom:0; grid-column:span 2;">
         <label for="notes">Notes</label>
         <input id="notes" name="notes" type="text" class="input"
@@ -63,10 +58,11 @@
       <table id="lines-table">
         <thead>
           <tr>
-            <th style="width:40%">Product</th>
-            <th style="width:18%">Qty (kg)</th>
-            <th style="width:22%">Cost per kg (₹)</th>
-            <th style="width:15%">Line total</th>
+            <th style="width:36%">Product</th>
+            <th style="width:16%">Qty (kg)</th>
+            <th style="width:19%">Cost per kg (₹)</th>
+            <th style="width:13%">Line total</th>
+            <th style="width:11%; text-align:center;" title="Tick to update the product's cost price">Update cost?</th>
             <th style="width:5%"></th>
           </tr>
         </thead>
@@ -179,6 +175,8 @@ function addLine(productId, qtyKg, costPerKg) {
     '<td><input type="number" name="cost_per_kg_' + i + '" id="cost_' + i + '" step="0.01" min="0" class="input input-sm"' +
     (costPerKg !== undefined ? ' value="' + costPerKg.toFixed(2) + '"' : '') + ' oninput="recalcTotal()"></td>' +
     '<td id="lt_' + i + '" style="font-size:13px; color:var(--muted);">—</td>' +
+    '<td style="text-align:center;"><input type="checkbox" name="update_cost_' + i + '" value="1"' +
+    (costPerKg === undefined ? ' checked' : '') + '></td>' +
     '<td><button type="button" class="btn btn-secondary btn-sm" onclick="removeLine(' + i + ')">✕</button></td>';
   tbody.appendChild(tr);
   updateLineCount();
